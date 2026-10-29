@@ -16,7 +16,7 @@ public class AyurnexaApplication {
 	}
 
 
-	@GetMapping ("/")
+	@GetMapping ("/test")
 	public String home()
 	{
 		return "Home World";

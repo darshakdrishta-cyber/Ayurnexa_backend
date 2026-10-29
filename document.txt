@@ -1,0 +1,521 @@
+# AyurNexa Backend API - Frontend Integration Documentation
+
+## Overview
+
+AyurNexa is a Spring Boot REST API backed by MongoDB. It provides authentication, product catalog, payments (COD and Razorpay UPI), order management, and image uploads to Supabase Storage for an Ayurveda e-commerce application.
+
+All application API routes are mounted under `/api`. Every application route (except the Razorpay webhook) requires an `X-API-Key` header. Routes marked with `@JWTAnnotation` additionally require a user Bearer JWT obtained from login (email/password or Google).
+
+---
+
+## Google Sign-In Flow
+
+The frontend shows Google's sign-in button and receives a Google ID token.
+
+1. **Frontend**: renders the Google sign-in button, obtains a Google ID token (`credential`) after the user signs in.
+2. **Frontend → Backend**: sends that token to `POST /api/auth/google` as JSON body `{ "credential": "<Google ID token>" }`.
+3. **Backend**: verifies the token with Google, finds or creates the user (creates an account with no password on first sign-in; `emailVerified=true`, `username` from Google profile), and returns your own JWT.
+4. **After login**: everything stays unchanged — protected routes (`@JWTAnnotation`), admin role checks (`ROLE_ADMIN`), and the `Authorization: Bearer <JWT>` header work exactly like email/password login.
+
+---
+
+## Base URL and Common Headers
+
+Set `BASE_URL` to your deployed backend (e.g. `http://localhost:8080` locally).
+
+Every application API call sends:
+
+```http
+X-API-Key: <API_KEY>
+Content-Type: application/json
+```
+
+Protected (JWT) operations additionally send:
+
+```http
+Authorization: Bearer <JWT returned by login>
+```
+
+File upload (`POST /api/uploads`) sends `Content-Type: multipart/form-data` automatically when using `-F` in curl.
+
+---
+
+## Environment Variables
+
+| Variable | Required | Purpose |
+| --- | --- | --- |
+| PORT | No (default 8080) | HTTP listener port |
+| MONGODB_URI | No (default local Mongo) | MongoDB connection string |
+| JWT_SECRET | Yes | HMAC signing/verification key (min 32 bytes) |
+| JWT_EXPIRATION_MS | No (default 3600000) | JWT lifetime in ms |
+| API_KEY | Yes | Value expected in `X-API-Key` for `/api/**` |
+| CORS_ALLOWED_ORIGINS | No (default http://localhost:3000) | Comma-separated frontend origins |
+| RAZORPAY_KEY_ID | Yes | Razorpay API key ID |
+| RAZORPAY_KEY_SECRET | Yes | Razorpay API key secret (backend only) |
+| RAZORPAY_WEBHOOK_SECRET | Yes | Razorpay webhook HMAC secret |
+| RAZORPAY_CALLBACK_URL | No | Optional callback URL for Payment Links |
+| RAZORPAY_LINK_EXPIRY_MINUTES | No (default 30) | Payment Link expiry duration |
+| SUPABASE_URL | Yes | Supabase project URL (e.g. https://<ref>.supabase.co) |
+| SUPABASE_PUBLISHABLE_KEY | Yes | Supabase anon / public key |
+| SUPABASE_SECRET_KEY | Yes | Supabase service-role secret key (backend only) |
+| SUPABASE_JWKS_URL | Yes | Supabase JWKS URL |
+| SUPABASE_BUCKET | No (default products) | Supabase Storage bucket name |
+
+Never expose `RAZORPAY_KEY_SECRET`, `RAZORPAY_WEBHOOK_SECRET`, `JWT_SECRET`, `API_KEY`, or `SUPABASE_SECRET_KEY` to the frontend.
+
+---
+
+## Authentication
+
+### Register a new user
+**POST** `/api/auth/register` — API key required, no JWT.
+
+Creates a user account with role `USER`. Email is normalized to lowercase. Passwords are hashed with BCrypt.
+
+```bash
+curl -i -X POST "$BASE_URL/api/auth/register" \
+  -H "X-API-Key: $API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "username": "demo-user",
+    "email": "demo@example.com",
+    "password": "change-this-password"
+  }'
+```
+
+Response: `UserDTO.Response` (userId, username, email, emailVerified, phoneVerified, role).
+
+### Login
+**POST** `/api/auth/login` — API key required, no JWT.
+
+Verifies email/password and returns a JWT. Save the `token` for protected calls.
+
+```bash
+curl -i -X POST "$BASE_URL/api/auth/login" \
+  -H "X-API-Key: $API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "demo@example.com",
+    "password": "change-this-password"
+  }'
+```
+
+Response: `UserDTO.LoginResponse` containing `token`, `tokenType` ("Bearer"), `expiresIn` (seconds), and `user` details.
+
+### Get current user
+**GET** `/api/auth/me` — API key + JWT required.
+
+Returns the authenticated user's email and roles.
+
+```bash
+curl -i "$BASE_URL/api/auth/me" \
+  -H "X-API-Key: $API_KEY" \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+### Google Sign In / Sign Up
+**POST** `/api/auth/google` — API key required, no JWT.
+
+Verifies a Google ID token (credential) obtained from Google Sign-In on the frontend.
+- If the Google email already exists → signs in the user.
+- If the email is new → signs up (creates an account with no password; `emailVerified=true`, `username` from Google profile).
+- Returns a JWT plus `action` (`SIGNED_IN` or `SIGNED_UP`).
+
+```bash
+curl -i -X POST "$BASE_URL/api/auth/google" \
+  -H "X-API-Key: $API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "credential": "<Google ID token from frontend>"
+  }'
+```
+
+Request body: `UserDTO.GoogleCredentialRequest` — `{ "credential": "<string>" }`.
+
+Response: `UserDTO.GoogleAuthResponse` — `{ action, token, tokenType ("Bearer"), expiresIn (seconds), user: { userId, username, email, emailVerified, phoneVerified, role } }`.
+
+Error responses:
+- `401` — Invalid token / token verification failed
+- `403` — Email not verified
+
+---
+
+## Products (CRUD)
+
+All product routes require API key + JWT. Create, update, list-all, toggle, and delete require `ROLE_ADMIN`. Listing and getting products do not require admin.
+
+| Operation | Method | Endpoint | Description | Auth |
+| --- | --- | --- | --- | --- |
+| Create | POST | `/api/products` | Create a new product with image URL and isActive flag | API key + JWT (ADMIN) |
+| List active | GET | `/api/products` | List products where `isActive = true` only | API key + JWT |
+| List all | GET | `/api/products/all` | List every product regardless of `isActive` | API key + JWT (ADMIN) |
+| Get | GET | `/api/products/{productId}` | Get one product by business ID (any status) | API key + JWT |
+| Search | GET | `/api/products/search?name=...` | Search products by name (case-insensitive, partial match) | API key + JWT |
+| Update | PATCH | `/api/products/{productId}` | Update product fields (partial; only non-null fields change) | API key + JWT (ADMIN) |
+| Toggle | PATCH | `/api/products/{productId}/toggle` | Stop/start listing by flipping `isActive` | API key + JWT (ADMIN) |
+| Delete | DELETE | `/api/products/{productId}` | Delete a product (not if referenced by an order) | API key + JWT (ADMIN) |
+
+### Create product (ADMIN)
+`isActive` can be `true` or `false` at creation. `productImage` is the public Supabase URL returned by the upload route.
+
+```bash
+curl -i -X POST "$BASE_URL/api/products" \
+  -H "X-API-Key: $API_KEY" \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "productName": "Herbal Oil",
+    "productDescription": "100 ml herbal oil",
+    "productCategory": "Oil",
+    "productWeight": "100ml",
+    "form": "Liquid",
+    "productImage": "https://<ref>.supabase.co/storage/v1/object/public/products/<uuid>.jpg",
+    "isActive": true,
+    "productPrice": 499.00
+  }'
+```
+
+### List active products
+```bash
+curl -i "$BASE_URL/api/products" \
+  -H "X-API-Key: $API_KEY" \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+### List all products (ADMIN)
+```bash
+curl -i "$BASE_URL/api/products/all" \
+  -H "X-API-Key: $API_KEY" \
+  -H "Authorization: Bearer $ADMIN_TOKEN"
+```
+
+### Get product by ID
+```bash
+curl -i "$BASE_URL/api/products/$PRODUCT_ID" \
+  -H "X-API-Key: $API_KEY" \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+### Search products by name
+```bash
+curl -i "$BASE_URL/api/products/search?name=herbal" \
+  -H "X-API-Key: $API_KEY" \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+### Update product (ADMIN)
+Only the fields you send are updated. `isActive` can be set to `true`/`false` here too.
+
+```bash
+curl -i -X PATCH "$BASE_URL/api/products/$PRODUCT_ID" \
+  -H "X-API-Key: $API_KEY" \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "productName": "Herbal Oil",
+    "productDescription": "Updated description",
+    "productPrice": 525.00,
+    "isActive": true
+  }'
+```
+
+### Stop / start listing (toggle isActive, ADMIN)
+Flips `isActive` on the product. Returns the updated product.
+
+```bash
+curl -i -X PATCH "$BASE_URL/api/products/$PRODUCT_ID/toggle" \
+  -H "X-API-Key: $API_KEY" \
+  -H "Authorization: Bearer $ADMIN_TOKEN"
+```
+
+### Delete product (ADMIN)
+```bash
+curl -i -X DELETE "$BASE_URL/api/products/$PRODUCT_ID" \
+  -H "X-API-Key: $API_KEY" \
+  -H "Authorization: Bearer $ADMIN_TOKEN"
+```
+
+**Note:** Products referenced by existing orders cannot be deleted (returns an error).
+
+---
+
+## Image Uploads (Supabase Storage)
+
+### Upload an image (ADMIN)
+**POST** `/api/uploads` — API key + JWT (ADMIN) required.
+
+Uploads a file to Supabase Storage bucket `products` and returns the public image URL. Use that URL as `productImage` when creating/updating a product.
+
+```bash
+curl -i -X POST "$BASE_URL/api/uploads" \
+  -H "X-API-Key: $API_KEY" \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  -F "file=@/path/to/image.jpg"
+```
+
+Response: `{ "url": "<public-supabase-url>", "path": "products/<uuid>.jpg", "bucket": "products" }`.
+
+**How images flow:**
+1. Frontend uploads image → `POST /api/uploads` → returns public Supabase URL.
+2. Frontend sends that URL in `productImage` on `POST /api/products` or `PATCH /api/products/{productId}`.
+3. `GET /api/products` returns `productImage` in each product response; the frontend renders it directly from Supabase's public bucket.
+
+---
+
+## Payments (CRUD)
+
+All payment routes require API key + JWT and are scoped to the logged-in user. `idempotencyKey` is required when creating a payment. Reuse the same key when retrying the same request; use a new key for a new attempt.
+
+| Operation | Method | Endpoint | Description |
+| --- | --- | --- | --- |
+| Create | POST | `/api/payments` | Create a payment record (COD or Razorpay UPI link) |
+| List | GET | `/api/payments` | List current user's payments |
+| Get | GET | `/api/payments/{paymentRecordId}` | Get one payment |
+| Update | PUT | `/api/payments/{paymentRecordId}` | Update an eligible pending payment |
+| Delete | DELETE | `/api/payments/{paymentRecordId}` | Delete an eligible pending payment |
+
+### Create COD payment
+```bash
+curl -i -X POST "$BASE_URL/api/payments" \
+  -H "X-API-Key: $API_KEY" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "amount": 499.00,
+    "paymentMethod": "COD",
+    "idempotencyKey": "checkout-<unique-request-id>"
+  }'
+```
+
+### Create Razorpay UPI payment link
+```bash
+curl -i -X POST "$BASE_URL/api/payments" \
+  -H "X-API-Key: $API_KEY" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "amount": 499.00,
+    "paymentMethod": "UPI",
+    "idempotencyKey": "checkout-<unique-request-id>",
+    "customerName": "Demo User",
+    "customerEmail": "demo@example.com",
+    "customerContact": "+919999999999"
+  }'
+```
+
+Response includes `paymentLinkUrl` (Razorpay UPI link) and `paymentLinkId`.
+
+### List user's payments
+```bash
+curl -i "$BASE_URL/api/payments" \
+  -H "X-API-Key: $API_KEY" \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+### Get one payment
+```bash
+curl -i "$BASE_URL/api/payments/$PAYMENT_RECORD_ID" \
+  -H "X-API-Key: $API_KEY" \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+### Update payment (pending only, no Razorpay link)
+```bash
+curl -i -X PUT "$BASE_URL/api/payments/$PAYMENT_RECORD_ID" \
+  -H "X-API-Key: $API_KEY" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "amount": 499.00,
+    "paymentMethod": "COD"
+  }'
+```
+
+### Delete payment (pending only, no Razorpay link)
+```bash
+curl -i -X DELETE "$BASE_URL/api/payments/$PAYMENT_RECORD_ID" \
+  -H "X-API-Key: $API_KEY" \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+**Important:** Do not mark a payment successful from the frontend. Razorpay payment status is changed only by its verified webhook. A payment with a Payment Link or a terminal status cannot be edited/deleted.
+
+---
+
+## Orders (CRUD)
+
+All order routes require API key + JWT and operate on the logged-in user's orders. Create requires a saved Payment record: payment method must be COD or payment status must already be `SUCCESS`. Item prices and order total are computed from the Product catalog; the submitted total is never trusted.
+
+| Operation | Method | Endpoint | Description |
+| --- | --- | --- | --- |
+| Create | POST | `/api/orders` | Create an order from a payment |
+| List | GET | `/api/orders` | List current user's orders |
+| Get | GET | `/api/orders/{orderId}` | Get one order |
+| Update | PUT | `/api/orders/{orderId}` | Update order status/progress/dates |
+| Delete | DELETE | `/api/orders/{orderId}` | Delete an order |
+
+### Create order
+`paymentId` is the local Payment response's `id`. Item `productId` is a Product business ID.
+
+```bash
+curl -i -X POST "$BASE_URL/api/orders" \
+  -H "X-API-Key: $API_KEY" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "paymentId": "<payment-record-id>",
+    "expectedDeliveryDate": "2026-10-30",
+    "items": [
+      { "productId": "<product-business-id>", "quantity": 2 }
+    ]
+  }'
+```
+
+### List user's orders
+```bash
+curl -i "$BASE_URL/api/orders" \
+  -H "X-API-Key: $API_KEY" \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+### Get one order
+```bash
+curl -i "$BASE_URL/api/orders/$ORDER_ID" \
+  -H "X-API-Key: $API_KEY" \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+### Update order
+```bash
+curl -i -X PUT "$BASE_URL/api/orders/$ORDER_ID" \
+  -H "X-API-Key: $API_KEY" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "orderProgress": "PACKED",
+    "expectedDeliveryDate": "2026-10-31"
+  }'
+```
+
+### Delete order
+```bash
+curl -i -X DELETE "$BASE_URL/api/orders/$ORDER_ID" \
+  -H "X-API-Key: $API_KEY" \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+---
+
+## Razorpay Webhook (frontend does NOT call this)
+
+Configure this public URL in the Razorpay dashboard:
+
+```
+POST https://<public-domain>/api/payments/razorpay/webhook
+```
+
+Subscribe to the `payment_link.paid` event.
+
+- This endpoint does **not** require `X-API-Key` or a user JWT.
+- It validates `X-Razorpay-Signature` against the exact raw body using `RAZORPAY_WEBHOOK_SECRET`.
+- On a valid `payment_link.paid` event, it verifies the payment reference, Payment Link ID, and exact paid amount, then marks the Payment `SUCCESS` and stores the gateway payment ID.
+- Invalid signatures receive `401`; malformed/mismatched events receive `400`; success receives `200`.
+- Repeated paid events are safe (idempotent).
+
+Do not fake a Razorpay webhook with curl in production. For local integration testing, use Razorpay test mode with a reachable webhook tunnel.
+
+After payment is confirmed, the frontend can create the Order using the local payment record `id`.
+
+---
+
+## Other Routes
+
+| Method | Endpoint | Auth | Description |
+| --- | --- | --- | --- |
+| GET | `/api/test` | API key | Health check returning "Home World" |
+| GET | `/api/mongo/test-mongo` | API key | Pings MongoDB and reports connectivity |
+
+```bash
+curl -i "$BASE_URL/api/test" -H "X-API-Key: $API_KEY"
+curl -i "$BASE_URL/api/mongo/test-mongo" -H "X-API-Key: $API_KEY"
+```
+
+---
+
+## CRUD Summary (what each request does)
+
+### Auth
+| Verb | Endpoint | Action | Auth |
+| --- | --- | --- | --- |
+| POST | `/api/auth/register` | Create user account (email/password) | API key |
+| POST | `/api/auth/login` | Authenticate email/password and issue JWT | API key |
+| POST | `/api/auth/google` | Google sign in / sign up and issue JWT | API key |
+| GET | `/api/auth/me` | Return authenticated user | API key + JWT |
+
+### Products
+| Verb | Endpoint | Action | Auth |
+| --- | --- | --- | --- |
+| POST | `/api/products` | CREATE product (image URL + isActive) | API key + JWT (ADMIN) |
+| GET | `/api/products` | READ/list active products (isActive=true) | API key + JWT |
+| GET | `/api/products/all` | READ/list all products | API key + JWT (ADMIN) |
+| GET | `/api/products/{id}` | READ one product | API key + JWT |
+| GET | `/api/products/search?name=` | Search products by name | API key + JWT |
+| PATCH | `/api/products/{id}` | UPDATE product (partial) | API key + JWT (ADMIN) |
+| PATCH | `/api/products/{id}/toggle` | TOGGLE isActive (stop/start listing) | API key + JWT (ADMIN) |
+| DELETE | `/api/products/{id}` | DELETE product | API key + JWT (ADMIN) |
+
+### Uploads
+| Verb | Endpoint | Action | Auth |
+| --- | --- | --- | --- |
+| POST | `/api/uploads` | Upload image to Supabase, return public URL | API key + JWT (ADMIN) |
+
+### Payments
+| Verb | Endpoint | Action | Auth |
+| --- | --- | --- | --- |
+| POST | `/api/payments` | CREATE payment (COD or UPI link) | API key + JWT |
+| GET | `/api/payments` | READ/list user payments | API key + JWT |
+| GET | `/api/payments/{id}` | READ one payment | API key + JWT |
+| PUT | `/api/payments/{id}` | UPDATE pending payment | API key + JWT |
+| DELETE | `/api/payments/{id}` | DELETE pending payment | API key + JWT |
+
+### Orders
+| Verb | Endpoint | Action | Auth |
+| --- | --- | --- | --- |
+| POST | `/api/orders` | CREATE order from payment | API key + JWT |
+| GET | `/api/orders` | READ/list user orders | API key + JWT |
+| GET | `/api/orders/{id}` | READ one order | API key + JWT |
+| PUT | `/api/orders/{id}` | UPDATE order fields | API key + JWT |
+| DELETE | `/api/orders/{id}` | DELETE order | API key + JWT |
+
+### Webhook
+| Verb | Endpoint | Action | Auth |
+| --- | --- | --- | --- |
+| POST | `/api/payments/razorpay/webhook` | Razorpay notifies payment paid | HMAC signature (no API key/JWT) |
+
+---
+
+## Common HTTP Responses
+
+| Code | Meaning |
+| --- | --- |
+| 200 | Success |
+| 201 | Resource created |
+| 204 | Resource deleted |
+| 400 | Invalid request body, amount mismatch, or malformed webhook |
+| 401 | Missing/invalid API key, missing/invalid/expired JWT, or invalid webhook signature |
+| 403 | Authenticated user lacks required admin role |
+| 404 | Requested resource does not exist or does not belong to caller |
+| 409 | Duplicate resource or payment conflict |
+
+---
+
+## Frontend Integration Notes
+
+1. **Flow**: Register/Login/Google Sign-In → obtain JWT → include `Authorization: Bearer <JWT>` and `X-API-Key` on protected calls.
+2. **Google Auth**: Frontend obtains a Google ID token via Google Sign-In and POSTs it to `/api/auth/google`. The backend creates an account on first use (no password) or signs in an existing user, then returns a JWT.
+3. **Image upload**: POST the file to `/api/uploads` → use returned `url` as `productImage` on product create/update.
+4. **Product listing**: `GET /api/products` returns only `isActive=true` products. Use `GET /api/products/all` (admin) to see every product including inactive ones.
+5. **Payment flow**: Create payment → (for UPI) open `paymentLinkUrl` in browser → Razorpay webhook marks payment SUCCESS → create Order using payment `id`.
+6. **Idempotency**: Always send a unique `idempotencyKey` when creating payments; reuse it on retry of the same request.
+7. **CORS**: Configure `CORS_ALLOWED_ORIGINS` to your frontend origin(s) (e.g. `http://localhost:5173`). Browsers send an `OPTIONS` preflight before cross-origin uploads; the backend allows preflight without a JWT, but the actual `POST` still requires a valid JWT.
+8. **Secrets**: Never put `JWT_SECRET`, `API_KEY`, `RAZORPAY_KEY_SECRET`, `RAZORPAY_WEBHOOK_SECRET`, or `SUPABASE_SECRET_KEY` in frontend code.
