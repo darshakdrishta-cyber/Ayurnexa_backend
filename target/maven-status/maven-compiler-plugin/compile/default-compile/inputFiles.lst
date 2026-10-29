@@ -1,4 +1,5 @@
 /home/rksharma/Desktop/Projects/backend/AyurNexa/Ayurnexa_backend/src/main/java/com/Ayurnexa/Ayurnexa/AyurnexaApplication.java
+/home/rksharma/Desktop/Projects/backend/AyurNexa/Ayurnexa_backend/src/main/java/com/Ayurnexa/Ayurnexa/Service/EmailService.java
 /home/rksharma/Desktop/Projects/backend/AyurNexa/Ayurnexa_backend/src/main/java/com/Ayurnexa/Ayurnexa/Service/JwtService.java
 /home/rksharma/Desktop/Projects/backend/AyurNexa/Ayurnexa_backend/src/main/java/com/Ayurnexa/Ayurnexa/Service/OrderService.java
 /home/rksharma/Desktop/Projects/backend/AyurNexa/Ayurnexa_backend/src/main/java/com/Ayurnexa/Ayurnexa/Service/PaymentService.java
@@ -11,6 +12,7 @@
 /home/rksharma/Desktop/Projects/backend/AyurNexa/Ayurnexa_backend/src/main/java/com/Ayurnexa/Ayurnexa/config/MongoAuditingConfiguration.java
 /home/rksharma/Desktop/Projects/backend/AyurNexa/Ayurnexa_backend/src/main/java/com/Ayurnexa/Ayurnexa/config/SecurityConfiguration.java
 /home/rksharma/Desktop/Projects/backend/AyurNexa/Ayurnexa_backend/src/main/java/com/Ayurnexa/Ayurnexa/controller/AuthController.java
+/home/rksharma/Desktop/Projects/backend/AyurNexa/Ayurnexa_backend/src/main/java/com/Ayurnexa/Ayurnexa/controller/EmailController.java
 /home/rksharma/Desktop/Projects/backend/AyurNexa/Ayurnexa_backend/src/main/java/com/Ayurnexa/Ayurnexa/controller/GoogleAuthController.java
 /home/rksharma/Desktop/Projects/backend/AyurNexa/Ayurnexa_backend/src/main/java/com/Ayurnexa/Ayurnexa/controller/MongotestController.java
 /home/rksharma/Desktop/Projects/backend/AyurNexa/Ayurnexa_backend/src/main/java/com/Ayurnexa/Ayurnexa/controller/OrderController.java
