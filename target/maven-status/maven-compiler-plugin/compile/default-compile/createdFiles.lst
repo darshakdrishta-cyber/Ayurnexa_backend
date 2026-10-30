@@ -19,7 +19,9 @@ com/Ayurnexa/Ayurnexa/repository/OrderRepository.class
 com/Ayurnexa/Ayurnexa/model/User/Address.class
 com/Ayurnexa/Ayurnexa/dto/UserDTO.class
 com/Ayurnexa/Ayurnexa/repository/UserRepository.class
+com/Ayurnexa/Ayurnexa/controller/EmailController$SendRequest.class
 com/Ayurnexa/Ayurnexa/controller/OrderController.class
+com/Ayurnexa/Ayurnexa/controller/EmailController.class
 com/Ayurnexa/Ayurnexa/model/product/Product.class
 com/Ayurnexa/Ayurnexa/security/JwtAnnotationInterceptor.class
 com/Ayurnexa/Ayurnexa/security/JwtRequired.class
@@ -53,6 +55,7 @@ com/Ayurnexa/Ayurnexa/dto/product/ProductDTO$UpdateRequest.class
 com/Ayurnexa/Ayurnexa/dto/UserDTO$GoogleCredentialRequest.class
 com/Ayurnexa/Ayurnexa/Service/ProductService.class
 com/Ayurnexa/Ayurnexa/dto/payment/PaymentDTO$CreateRequest.class
+com/Ayurnexa/Ayurnexa/Service/EmailService.class
 com/Ayurnexa/Ayurnexa/dto/UserDTO$AuthenticatedUser.class
 com/Ayurnexa/Ayurnexa/Service/PaymentService.class
 com/Ayurnexa/Ayurnexa/model/Payment/Payment.class
