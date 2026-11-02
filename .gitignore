@@ -9,9 +9,6 @@
 .env.*
 .env.example
 
-# GitHub workflows (local only)
-.github/
-
 # BlueJ files
 *.ctxt
 

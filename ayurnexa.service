@@ -1,14 +1,14 @@
 [Unit]
-Description=Spring Boot Ayurnexa API Service
-After=network.target
+Description=Ayurnexa Backend (Docker)
+After=docker.service
+Requires=docker.service
 
 [Service]
-User=root
-WorkingDirectory=/opt/Ayurnexa_backend
-ExecStart=/usr/bin/java -jar /opt/Ayurnexa_backend/target/Ayurnexa-0.0.1-SNAPSHOT.jar
-SuccessExitStatus=143
 Restart=always
 RestartSec=10
+ExecStartPre=/usr/bin/docker pull ghcr.io/YOUR_GITHUB_USER/backendayurnexa:latest
+ExecStart=/usr/bin/docker run --rm --name backendayurnexa -p 8080:8080 --env-file /opt/backendayurnexa/.env ghcr.io/YOUR_GITHUB_USER/backendayurnexa:latest
+ExecStop=/usr/bin/docker stop backendayurnexa
 
 [Install]
 WantedBy=multi-user.target
