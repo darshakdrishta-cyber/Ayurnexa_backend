@@ -19,11 +19,11 @@ public class JwtWebConfiguration implements WebMvcConfigurer {
 
     private final JwtAnnotationInterceptor jwtAnnotationInterceptor;
     private final ApiKeyInterceptor apiKeyInterceptor;
-    private final String[] allowedOrigins;
+    private final String[] allowedOriginPatterns;
 
     public JwtWebConfiguration(JwtAnnotationInterceptor jwtAnnotationInterceptor,
                                ApiKeyInterceptor apiKeyInterceptor,
-                               @Value("${app.cors.allowed-origins:http://localhost:3000,http://localhost:5173}") String allowedOrigins) {
+                               @Value("${app.cors.allowed-origins:*}") String allowedOrigins) {
         this.jwtAnnotationInterceptor = jwtAnnotationInterceptor;
         this.apiKeyInterceptor = apiKeyInterceptor;
         List<String> origins = new ArrayList<>();
@@ -33,7 +33,7 @@ public class JwtWebConfiguration implements WebMvcConfigurer {
                 origins.add(trimmedOrigin);
             }
         }
-        this.allowedOrigins = origins.toArray(String[]::new);
+        this.allowedOriginPatterns = origins.toArray(String[]::new);
     }
 
     @Override
@@ -47,20 +47,20 @@ public class JwtWebConfiguration implements WebMvcConfigurer {
     @Override
     public void addCorsMappings(CorsRegistry registry) {
         registry.addMapping("/api/**")
-                .allowedOrigins(allowedOrigins)
+                .allowedOriginPatterns(allowedOriginPatterns)
                 .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH")
                 .allowedHeaders("Authorization", "Content-Type", "X-API-Key", "X-Idempotency-Key")
-                .allowCredentials(true)
+                .allowCredentials(false)
                 .maxAge(3600);
     }
 
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(java.util.Arrays.asList(allowedOrigins));
+        configuration.setAllowedOriginPatterns(java.util.Arrays.asList(allowedOriginPatterns));
         configuration.setAllowedMethods(java.util.Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
         configuration.setAllowedHeaders(java.util.Arrays.asList("Authorization", "Content-Type", "X-API-Key", "X-Idempotency-Key"));
-        configuration.setAllowCredentials(true);
+        configuration.setAllowCredentials(false);
         configuration.setMaxAge(3600L);
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/api/**", configuration);
