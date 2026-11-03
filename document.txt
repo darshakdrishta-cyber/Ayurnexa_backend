@@ -4,7 +4,7 @@
 
 AyurNexa is a Spring Boot REST API backed by MongoDB. It provides authentication, product catalog, payments (COD and Razorpay UPI), order management, and image uploads to Supabase Storage for an Ayurveda e-commerce application.
 
-All application API routes are mounted under `/api`. Every application route (except the Razorpay webhook) requires an `X-API-Key` header. Routes marked with `@JWTAnnotation` additionally require a user Bearer JWT obtained from login (email/password or Google).
+All application API routes are mounted under `/api`. Every application route (except the Razorpay webhook) requires an `X-API-Key` header. Routes marked with `@JWTAnnotation` additionally require a user Bearer JWT returned by the backend after Google sign-in.
 
 ---
 
@@ -15,7 +15,7 @@ The frontend shows Google's sign-in button and receives a Google ID token.
 1. **Frontend**: renders the Google sign-in button, obtains a Google ID token (`credential`) after the user signs in.
 2. **Frontend → Backend**: sends that token to `POST /api/auth/google` as JSON body `{ "credential": "<Google ID token>" }`.
 3. **Backend**: verifies the token with Google, finds or creates the user (creates an account with no password on first sign-in; `emailVerified=true`, `username` from Google profile), and returns your own JWT.
-4. **After login**: everything stays unchanged — protected routes (`@JWTAnnotation`), admin role checks (`ROLE_ADMIN`), and the `Authorization: Bearer <JWT>` header work exactly like email/password login.
+4. **After sign-in**: the backend returns its own JWT. Send it as a Bearer token to protected routes; this JWT is separate from the Google ID token.
 
 ---
 
@@ -49,7 +49,7 @@ File upload (`POST /api/uploads`) sends `Content-Type: multipart/form-data` auto
 | JWT_SECRET | Yes | HMAC signing/verification key (min 32 bytes) |
 | JWT_EXPIRATION_MS | No (default 3600000) | JWT lifetime in ms |
 | API_KEY | Yes | Value expected in `X-API-Key` for `/api/**` |
-| CORS_ALLOWED_ORIGINS | No (default http://localhost:3000) | Comma-separated frontend origins |
+| CORS_ALLOWED_ORIGINS | No (default *) | Comma-separated frontend origins; * allows all origins |
 | RAZORPAY_KEY_ID | Yes | Razorpay API key ID |
 | RAZORPAY_KEY_SECRET | Yes | Razorpay API key secret (backend only) |
 | RAZORPAY_WEBHOOK_SECRET | Yes | Razorpay webhook HMAC secret |
@@ -67,40 +67,7 @@ Never expose `RAZORPAY_KEY_SECRET`, `RAZORPAY_WEBHOOK_SECRET`, `JWT_SECRET`, `AP
 
 ## Authentication
 
-### Register a new user
-**POST** `/api/auth/register` — API key required, no JWT.
-
-Creates a user account with role `USER`. Email is normalized to lowercase. Passwords are hashed with BCrypt.
-
-```bash
-curl -i -X POST "$BASE_URL/api/auth/register" \
-  -H "X-API-Key: $API_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "username": "demo-user",
-    "email": "demo@example.com",
-    "password": "change-this-password"
-  }'
-```
-
-Response: `UserDTO.Response` (userId, username, email, emailVerified, phoneVerified, role).
-
-### Login
-**POST** `/api/auth/login` — API key required, no JWT.
-
-Verifies email/password and returns a JWT. Save the `token` for protected calls.
-
-```bash
-curl -i -X POST "$BASE_URL/api/auth/login" \
-  -H "X-API-Key: $API_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "email": "demo@example.com",
-    "password": "change-this-password"
-  }'
-```
-
-Response: `UserDTO.LoginResponse` containing `token`, `tokenType` ("Bearer"), `expiresIn` (seconds), and `user` details.
+Email/password registration and login endpoints are not currently implemented. Use the Google sign-in/sign-up endpoint below.
 
 ### Get current user
 **GET** `/api/auth/me` — API key + JWT required.
@@ -447,8 +414,6 @@ curl -i "$BASE_URL/api/mongo/test-mongo" -H "X-API-Key: $API_KEY"
 ### Auth
 | Verb | Endpoint | Action | Auth |
 | --- | --- | --- | --- |
-| POST | `/api/auth/register` | Create user account (email/password) | API key |
-| POST | `/api/auth/login` | Authenticate email/password and issue JWT | API key |
 | POST | `/api/auth/google` | Google sign in / sign up and issue JWT | API key |
 | GET | `/api/auth/me` | Return authenticated user | API key + JWT |
 
@@ -511,11 +476,11 @@ curl -i "$BASE_URL/api/mongo/test-mongo" -H "X-API-Key: $API_KEY"
 
 ## Frontend Integration Notes
 
-1. **Flow**: Register/Login/Google Sign-In → obtain JWT → include `Authorization: Bearer <JWT>` and `X-API-Key` on protected calls.
-2. **Google Auth**: Frontend obtains a Google ID token via Google Sign-In and POSTs it to `/api/auth/google`. The backend creates an account on first use (no password) or signs in an existing user, then returns a JWT.
+1. **Flow**: Google Sign-In → send the Google ID token to `/api/auth/google` → use the returned backend JWT and `X-API-Key` on protected calls.
+2. **Google Auth**: The backend signs in an existing user by verified email or creates a new account if the email is not in the database.
 3. **Image upload**: POST the file to `/api/uploads` → use returned `url` as `productImage` on product create/update.
 4. **Product listing**: `GET /api/products` returns only `isActive=true` products. Use `GET /api/products/all` (admin) to see every product including inactive ones.
 5. **Payment flow**: Create payment → (for UPI) open `paymentLinkUrl` in browser → Razorpay webhook marks payment SUCCESS → create Order using payment `id`.
 6. **Idempotency**: Always send a unique `idempotencyKey` when creating payments; reuse it on retry of the same request.
-7. **CORS**: Configure `CORS_ALLOWED_ORIGINS` to your frontend origin(s) (e.g. `http://localhost:5173`). Browsers send an `OPTIONS` preflight before cross-origin uploads; the backend allows preflight without a JWT, but the actual `POST` still requires a valid JWT.
+7. **CORS**: `CORS_ALLOWED_ORIGINS=*` allows every frontend origin. Because credentialed CORS is enabled, restrict this setting to trusted origins in production whenever possible. Browsers send an `OPTIONS` preflight before cross-origin uploads; the backend allows preflight without a JWT, but the actual `POST` still requires a valid JWT.
 8. **Secrets**: Never put `JWT_SECRET`, `API_KEY`, `RAZORPAY_KEY_SECRET`, `RAZORPAY_WEBHOOK_SECRET`, or `SUPABASE_SECRET_KEY` in frontend code.

@@ -13,7 +13,7 @@ Copy `.env.example` to `.env` for local development and replace the placeholders
 | `JWT_SECRET` | Yes | HMAC signing and verification key; provide at least 32 random bytes |
 | `JWT_EXPIRATION_MS` | No; defaults to `3600000` | JWT lifetime in milliseconds |
 | `API_KEY` | Yes | Value expected in `X-API-Key` for `/api/**`, except the Razorpay webhook |
-| `CORS_ALLOWED_ORIGINS` | No; defaults to `http://localhost:3000` | Comma-separated browser frontend origins permitted to call the API |
+| `CORS_ALLOWED_ORIGINS` | No; defaults to `*` | Comma-separated browser frontend origins permitted to call the API; `*` permits all origins |
 | `RAZORPAY_KEY_ID` | Yes | Razorpay API key ID |
 | `RAZORPAY_KEY_SECRET` | Yes | Razorpay API key secret; used only by the backend |
 | `RAZORPAY_WEBHOOK_SECRET` | Yes | Secret configured for the Razorpay webhook; distinct from the API key secret |
@@ -27,7 +27,7 @@ openssl rand -base64 32
 openssl rand -hex 32
 ```
 
-Use separate values for `JWT_SECRET`, `API_KEY`, and `RAZORPAY_WEBHOOK_SECRET`. Set `CORS_ALLOWED_ORIGINS` to the exact frontend origin(s), without a path, for example `http://localhost:5173,https://your-frontend.example`.
+Use separate values for `JWT_SECRET`, `API_KEY`, and `RAZORPAY_WEBHOOK_SECRET`. `CORS_ALLOWED_ORIGINS=*` permits requests from every origin. This API also permits credentialed CORS requests, so allowing every origin increases the risk of cross-site access; restrict this setting to trusted frontend origins in production whenever possible. You can provide a comma-separated list of exact frontend origins (without paths) instead.
 
 ## Important API-Key Note
 
@@ -49,7 +49,7 @@ X-API-Key: <API_KEY>
 Content-Type: application/json
 ```
 
-Protected operations additionally send:
+After Google sign-in, protected operations additionally send:
 
 ```http
 Authorization: Bearer <JWT returned by login>
@@ -57,29 +57,20 @@ Authorization: Bearer <JWT returned by login>
 
 ## Authentication
 
-### Register
+### Google sign in or create an account
 
-`POST /api/auth/register` (API key required; no JWT)
+The backend currently supports user sign-in/sign-up through Google. There are no email/password `/register` or `/login` endpoints.
 
-```bash
-curl -i -X POST "$BASE_URL/api/auth/register" \
-	-H "X-API-Key: $API_KEY" \
-	-H "Content-Type: application/json" \
-	-d '{"username":"demo-user","email":"demo@example.com","password":"change-this-password"}'
-```
-
-### Login
-
-`POST /api/auth/login` (API key required; no JWT). Save `token` from the response for protected calls.
+The frontend obtains a Google ID token, then sends it to `POST /api/auth/google` (API key required; no JWT):
 
 ```bash
-curl -i -X POST "$BASE_URL/api/auth/login" \
+curl -i -X POST "$BASE_URL/api/auth/google" \
 	-H "X-API-Key: $API_KEY" \
 	-H "Content-Type: application/json" \
-	-d '{"email":"demo@example.com","password":"change-this-password"}'
+	-d '{"credential":"<Google ID token>"}'
 ```
 
-The response includes `token`, `tokenType` (`Bearer`), `expiresIn` (seconds), and safe user details.
+The backend verifies the Google token and its email. If that email already exists, it signs in that user; otherwise, it creates a user account. The response includes the backend's own `token`, `tokenType` (`Bearer`), `expiresIn` (seconds), and safe user details. Use this JWT for subsequent protected requests.
 
 ### Current user
 
