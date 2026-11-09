@@ -39,13 +39,13 @@ public class ProductController {
         return productService.create(request);
     }
 
- @JWTAnnotation
+   @JWTAnnotation
     @GetMapping
     public List<ProductDTO.Response> listActive() {
         return productService.listActive();
     }
 
-  //  @JWTAnnotation
+   @JWTAnnotation
     @GetMapping("/all")
     public List<ProductDTO.Response> listAll(Authentication authentication) {
         requireAdmin(authentication);
@@ -81,7 +81,7 @@ public class ProductController {
         return productService.toggleActive(productId);
     }
 
-    //@JWTAnnotation
+    @JWTAnnotation
     @DeleteMapping("/{productId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void delete(@PathVariable String productId, Authentication authentication) {

@@ -3,10 +3,14 @@ package com.Ayurnexa.Ayurnexa.config;
 import com.Ayurnexa.Ayurnexa.security.JwtAnnotationInterceptor;
 import com.Ayurnexa.Ayurnexa.security.ApiKeyInterceptor;
 import java.util.ArrayList;
+import java.util.EnumSet;
 import java.util.List;
+import jakarta.servlet.DispatcherType;
+import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.web.filter.CorsFilter;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 import org.springframework.web.servlet.config.annotation.CorsRegistry;
@@ -65,5 +69,19 @@ public class JwtWebConfiguration implements WebMvcConfigurer {
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/api/**", configuration);
         return source;
+    }
+
+    /**
+     * Register the CORS filter for ALL dispatcher types (including ERROR).
+     * Without this, error responses (5xx/4xx forwarded to /error by Tomcat)
+     * bypass the Spring Security CORS filter and lose the CORS headers,
+     * causing browser CORS policy errors even when the config is correct.
+     */
+    @Bean
+    public FilterRegistrationBean<CorsFilter> corsFilterRegistration(CorsConfigurationSource corsConfigurationSource) {
+        FilterRegistrationBean<CorsFilter> bean = new FilterRegistrationBean<>(new CorsFilter(corsConfigurationSource));
+        bean.setDispatcherTypes(EnumSet.allOf(DispatcherType.class)); // includes REQUEST, ERROR, ASYNC, FORWARD
+        bean.setOrder(-102); // run before Spring Security's filter chain (order -100)
+        return bean;
     }
 }

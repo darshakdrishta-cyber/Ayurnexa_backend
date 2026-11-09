@@ -57,7 +57,7 @@ public class UploadController {
                 upload.getCreatedAt());
     }
 
-    @JWTAnnotation
+    //@JWTAnnotation
     @GetMapping("/{id}")
     public ResponseEntity<byte[]> download(@PathVariable String id, Authentication authentication) {
         SupabaseStorageService.DownloadResult result = storageService.download(id, authentication.getName());
