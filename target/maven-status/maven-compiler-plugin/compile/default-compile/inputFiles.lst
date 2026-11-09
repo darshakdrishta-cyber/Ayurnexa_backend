@@ -23,6 +23,7 @@
 /home/rksharma/Desktop/Projects/backend/AyurNexa/Ayurnexa_backend/src/main/java/com/Ayurnexa/Ayurnexa/dto/payment/PaymentDTO.java
 /home/rksharma/Desktop/Projects/backend/AyurNexa/Ayurnexa_backend/src/main/java/com/Ayurnexa/Ayurnexa/dto/product/ProductDTO.java
 /home/rksharma/Desktop/Projects/backend/AyurNexa/Ayurnexa_backend/src/main/java/com/Ayurnexa/Ayurnexa/dto/upload/UploadDTO.java
+/home/rksharma/Desktop/Projects/backend/AyurNexa/Ayurnexa_backend/src/main/java/com/Ayurnexa/Ayurnexa/exception/UploadExceptionHandler.java
 /home/rksharma/Desktop/Projects/backend/AyurNexa/Ayurnexa_backend/src/main/java/com/Ayurnexa/Ayurnexa/model/Payment/Payment.java
 /home/rksharma/Desktop/Projects/backend/AyurNexa/Ayurnexa_backend/src/main/java/com/Ayurnexa/Ayurnexa/model/User/Address.java
 /home/rksharma/Desktop/Projects/backend/AyurNexa/Ayurnexa_backend/src/main/java/com/Ayurnexa/Ayurnexa/model/User/User.java

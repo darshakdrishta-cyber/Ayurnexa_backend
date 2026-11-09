@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "setup": "integrated",
+  "languages": [
+    "Java"
+  ],
+  "stacks": [
+    "Maven"
+  ],
+  "markers": [
+    "pom.xml"
+  ],
+  "suggestedRun": "mvn -q package",
+  "suggestedTest": "mvn -q test",
+  "createdAt": "2026-11-09T17:33:14.502Z",
+  "tool": "xgrok"
+}
