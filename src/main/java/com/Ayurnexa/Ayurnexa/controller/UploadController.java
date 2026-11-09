@@ -51,6 +51,8 @@ public class UploadController {
         this.storageService = storageService;
     }
 
+    @JWTAnnotation
+    @JWTAnnotation
     @PostMapping
     public ResponseEntity<?> upload(
             @RequestParam("file") MultipartFile file,
@@ -138,6 +140,7 @@ public class UploadController {
         return downloadResponse(result, true);
     }
 
+    @JWTAnnotation
     @GetMapping("/public/{token}")
     public ResponseEntity<byte[]> downloadPublic(@PathVariable String token) {
         SupabaseStorageService.DownloadResult result = storageService.downloadPublic(token);
