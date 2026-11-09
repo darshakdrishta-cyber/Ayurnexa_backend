@@ -3,6 +3,7 @@ package com.Ayurnexa.Ayurnexa.exception;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
+import com.Ayurnexa.Ayurnexa.Service.PayuPaymentService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -27,6 +28,19 @@ public class UploadExceptionHandler {
         HttpStatus status = message.contains("not configured") ? HttpStatus.SERVICE_UNAVAILABLE : HttpStatus.INTERNAL_SERVER_ERROR;
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("error", "SERVER_ERROR");
+        body.put("message", message);
+        return ResponseEntity.status(status).body(body);
+    }
+
+    @ExceptionHandler(PayuPaymentService.PayuException.class)
+    public ResponseEntity<Map<String, Object>> handlePayu(PayuPaymentService.PayuException exception) {
+        String message = exception.getMessage() != null ? exception.getMessage() : "Payment gateway error";
+        HttpStatus status = message.contains("not configured") ? HttpStatus.SERVICE_UNAVAILABLE
+                : message.contains("OAuth") ? HttpStatus.BAD_GATEWAY
+                : message.contains("rejected") ? HttpStatus.BAD_GATEWAY
+                : HttpStatus.INTERNAL_SERVER_ERROR;
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("error", "PAYMENT_GATEWAY_ERROR");
         body.put("message", message);
         return ResponseEntity.status(status).body(body);
     }

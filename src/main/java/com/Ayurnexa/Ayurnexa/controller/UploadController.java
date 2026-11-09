@@ -51,7 +51,6 @@ public class UploadController {
         this.storageService = storageService;
     }
 
-    @JWTAnnotation
     @PostMapping
     public ResponseEntity<?> upload(
             @RequestParam("file") MultipartFile file,

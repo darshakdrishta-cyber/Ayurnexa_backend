@@ -90,8 +90,10 @@ public class PayuPaymentService {
             }
             return new PaymentLinkResult(invoiceNumber, paymentLink);
         } catch (HttpStatusCodeException exception) {
+            String body = truncate(exception.getResponseBodyAsString());
             throw new PayuException(
-                    "PayU rejected the payment-link request (HTTP " + exception.getStatusCode().value() + ")",
+                    "PayU rejected the payment-link request (HTTP " + exception.getStatusCode().value() + ")"
+                            + (body.isBlank() ? "" : ": " + body),
                     exception);
         } catch (RestClientException exception) {
             throw new PayuException("Could not reach PayU payment links", exception);
@@ -113,8 +115,10 @@ public class PayuPaymentService {
             String status = result.path("status").asText();
             return new PaymentLinkStatus(status, collected);
         } catch (HttpStatusCodeException exception) {
+            String body = truncate(exception.getResponseBodyAsString());
             throw new PayuException(
-                    "PayU rejected the payment-status request (HTTP " + exception.getStatusCode().value() + ")",
+                    "PayU rejected the payment-status request (HTTP " + exception.getStatusCode().value() + ")"
+                            + (body.isBlank() ? "" : ": " + body),
                     exception);
         } catch (RestClientException exception) {
             throw new PayuException("Could not reach PayU payment links", exception);
@@ -160,8 +164,10 @@ public class PayuPaymentService {
             tokenExpiresAt = Instant.now().plusSeconds(Math.max(1, expiresIn - 30));
             return accessToken;
         } catch (HttpStatusCodeException exception) {
+            String body = truncate(exception.getResponseBodyAsString());
             throw new PayuException(
-                    "PayU OAuth authentication failed (HTTP " + exception.getStatusCode().value() + ")",
+                    "PayU OAuth authentication failed (HTTP " + exception.getStatusCode().value() + ")"
+                            + (body.isBlank() ? "" : ": " + body),
                     exception);
         } catch (RestClientException exception) {
             throw new PayuException("Could not reach PayU OAuth", exception);
@@ -208,6 +214,12 @@ public class PayuPaymentService {
             }
         }
         return BigDecimal.ZERO;
+    }
+
+    private static String truncate(String value) {
+        if (value == null) return "";
+        String v = value.trim();
+        return v.length() > 300 ? v.substring(0, 300) + "..." : v;
     }
 
     public record PaymentLinkResult(String invoiceNumber, String paymentLink) {}
