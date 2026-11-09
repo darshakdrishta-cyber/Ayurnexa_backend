@@ -51,7 +51,7 @@ public class SupabaseStorageService {
             @Value("${supabase.s3.access-key-id:}") String accessKeyId,
             @Value("${supabase.s3.secret-access-key:}") String secretAccessKey,
             @Value("${supabase.s3.region:}") String region,
-            @Value("${supabase.bucket:products}") String bucket) {
+            @Value("${supabase.bucket:Ayurnexa}") String bucket) {
         this.uploadRepository = uploadRepository;
         this.endpoint = endpoint;
         this.accessKeyId = accessKeyId;

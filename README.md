@@ -23,7 +23,7 @@ Copy `.env.example` to `.env` for local development and replace the placeholders
 | `SUPABASE_S3_SECRET_ACCESS_KEY` | Required for uploads | Supabase Storage S3 secret access key; backend only |
 | `SUPABASE_S3_REGION` | Required for uploads | Supabase project Storage region |
 | `SUPABASE_S3_ENDPOINT` | No | Optional S3 endpoint override; defaults to `${SUPABASE_URL}/storage/v1/s3` |
-| `SUPABASE_BUCKET` | No; defaults to `products` | Supabase Storage bucket used for uploads |
+| `SUPABASE_BUCKET` | No; defaults to `Ayurnexa` | Supabase Storage bucket used for uploads |
 
 Generate local secrets, for example:
 

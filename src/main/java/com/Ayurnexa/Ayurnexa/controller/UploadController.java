@@ -57,6 +57,7 @@ public class UploadController {
             @RequestParam("file") MultipartFile file,
             Authentication authentication) {
         try {
+            requireAdmin(authentication);
             if (file == null) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "No file was provided");
             }
@@ -82,7 +83,7 @@ public class UploadController {
                             "File extension not allowed: " + dangerous);
                 }
             }
-            String ownerEmail = authentication == null ? "anonymous" : authentication.getName();
+            String ownerEmail = authentication.getName();
             SupabaseStorageService.UploadResult result = storageService.upload(file, ownerEmail);
             var upload = result.upload();
             String url = ServletUriComponentsBuilder.fromCurrentContextPath()
@@ -112,6 +113,16 @@ public class UploadController {
             logger.error("Unexpected upload request failure", exception);
             return uploadError(HttpStatus.INTERNAL_SERVER_ERROR.value(), "UPLOAD_FAILED",
                     exception.getMessage(), exception);
+        }
+    }
+
+    private static void requireAdmin(Authentication authentication) {
+        if (authentication == null || !authentication.isAuthenticated()) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Authentication required");
+        }
+        if (authentication.getAuthorities().stream()
+                .noneMatch(authority -> "ROLE_ADMIN".equals(authority.getAuthority()))) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You are not an admin");
         }
     }
 
