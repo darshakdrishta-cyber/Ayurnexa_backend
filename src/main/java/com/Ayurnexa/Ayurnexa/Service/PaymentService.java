@@ -12,8 +12,6 @@ import org.springframework.stereotype.Service;
 
 import com.Ayurnexa.Ayurnexa.model.Payment.Payment;
 import com.Ayurnexa.Ayurnexa.repository.PaymentRepository;
-import com.Ayurnexa.Ayurnexa.Service.RazorpayService.PaymentLinkResult;
-import com.Ayurnexa.Ayurnexa.Service.RazorpayService.RazorpayException;
 
 @Service
 public class PaymentService {
@@ -29,21 +27,18 @@ public class PaymentService {
     public static final String UPI = "UPI";
 
     private final PaymentRepository paymentRepository;
-    private final RazorpayService razorpayService;
+    private final PayuPaymentService payuPaymentService;
 
-    public PaymentService(PaymentRepository paymentRepository, RazorpayService razorpayService) {
+    public PaymentService(PaymentRepository paymentRepository, PayuPaymentService payuPaymentService) {
         this.paymentRepository = paymentRepository;
-        this.razorpayService = razorpayService;
+        this.payuPaymentService = payuPaymentService;
     }
-
-    /** Optional customer details shown on the Razorpay page. All fields may be null. */
-    public record CustomerInfo(String name, String contact, String email) {}
 
     /**
      * Creates and saves a payment for an order.
      *
      * COD -> saved as PENDING (cash is collected on delivery; mark SUCCESS then).
-     * UPI -> saved as PENDING, a Razorpay UPI payment link is created and stored in paymentLinkUrl.
+     * UPI -> saved as PENDING, a PayU hosted payment link is created and stored in paymentLinkUrl.
      *
      * IMPORTANT: "amount" must be the order total read from the database by the caller,
      * never a value sent by the client.
@@ -80,7 +75,7 @@ public class PaymentService {
             throw new IllegalStateException("Order " + orderId + " is already paid");
         }
 
-        // ---- save as PENDING first, so we have an id to give Razorpay as reference ----
+        // ---- save as PENDING first so the payment has a stable local reference ----
         Payment payment = new Payment();
         payment.setUserId(userId);
         payment.setOrderId(orderId);
@@ -101,21 +96,16 @@ public class PaymentService {
             return toResponse(payment);
         }
 
-        // ---- online: create the Razorpay UPI link ----
+        // ---- online: create the PayU hosted payment link ----
         try {
-                CustomerInfo c = new CustomerInfo(
-                    request.customerName(), request.customerContact(), request.customerEmail());
-            PaymentLinkResult link = razorpayService.createUpiPaymentLink(
-                    payment.getId(), amount, payment.getCurrency(),
-                    "Payment for order " + orderId, c.name(), c.contact(), c.email());
-
-            payment.setPaymentLinkId(link.linkId());
-            payment.setPaymentLinkUrl(link.shortUrl());
-            payment.setGatewayResponse(link.rawResponse());   // contains the plink_xxx id
+            PayuPaymentService.PaymentLinkResult link = payuPaymentService.createPaymentLink(
+                    amount, "Payment for order " + orderId);
+            payment.setGatewayReferenceId(link.invoiceNumber());
+            payment.setPaymentLinkUrl(link.paymentLink());
             return toResponse(paymentRepository.save(payment));
-        } catch (RazorpayException e) {
+        } catch (PayuPaymentService.PayuException e) {
             payment.setPaymentStatus(FAILED);
-            payment.setGatewayResponse(e.getResponseBody() != null ? e.getResponseBody() : e.getMessage());
+            payment.setGatewayResponse(e.getMessage());
             paymentRepository.save(payment);
             throw e;
         }
@@ -136,7 +126,7 @@ public class PaymentService {
     public PaymentDTO.Response updatePayment(String userId, String id, PaymentDTO.UpdateRequest request) {
         Payment payment = ownedBy(findPayment(id), userId);
         if (!PENDING.equals(payment.getPaymentStatus()) || hasText(payment.getPaymentLinkUrl())) {
-            throw new IllegalStateException("Only pending payments without a Razorpay link can be edited");
+            throw new IllegalStateException("Only pending payments without a PayU payment link can be edited");
         }
         if (request.amount() == null || request.amount().compareTo(BigDecimal.ZERO) <= 0) {
             throw new IllegalArgumentException("amount must be greater than 0");
@@ -149,12 +139,10 @@ public class PaymentService {
         payment.setamount(request.amount());
         payment.setPaymentMethod(method);
         if (UPI.equals(method)) {
-            PaymentLinkResult link = razorpayService.createUpiPaymentLink(
-                    payment.getId(), payment.getamount(), payment.getCurrency(),
-                    "Payment " + payment.getId(), null, null, null);
-            payment.setPaymentLinkId(link.linkId());
-            payment.setPaymentLinkUrl(link.shortUrl());
-            payment.setGatewayResponse(link.rawResponse());
+            PayuPaymentService.PaymentLinkResult link = payuPaymentService.createPaymentLink(
+                    payment.getamount(), "Payment " + payment.getId());
+            payment.setGatewayReferenceId(link.invoiceNumber());
+            payment.setPaymentLinkUrl(link.paymentLink());
         }
         return toResponse(paymentRepository.save(payment));
     }
@@ -162,9 +150,28 @@ public class PaymentService {
     public void deletePayment(String userId, String id) {
         Payment payment = ownedBy(findPayment(id), userId);
         if (!PENDING.equals(payment.getPaymentStatus()) || hasText(payment.getPaymentLinkUrl())) {
-            throw new IllegalStateException("Only pending payments without a Razorpay link can be deleted");
+            throw new IllegalStateException("Only pending payments without a PayU payment link can be deleted");
         }
         paymentRepository.delete(payment);
+    }
+
+    public PaymentDTO.Response verifyPayuPayment(String userId, String id) {
+        Payment payment = ownedBy(findPayment(id), userId);
+        if (!UPI.equals(payment.getPaymentMethod()) || !hasText(payment.getGatewayReferenceId())) {
+            throw new IllegalStateException("Payment does not have a PayU payment link");
+        }
+        if (SUCCESS.equals(payment.getPaymentStatus())) {
+            return toResponse(payment);
+        }
+
+        PayuPaymentService.PaymentLinkStatus status =
+                payuPaymentService.getPaymentLinkStatus(payment.getGatewayReferenceId());
+        if (payment.getamount().compareTo(status.totalAmountCollected()) == 0) {
+            payment.setPaymentStatus(SUCCESS);
+            payment.setGatewayResponse("PayU payment link status: " + status.status());
+            payment = paymentRepository.save(payment);
+        }
+        return toResponse(payment);
     }
 
     // ---------- helpers ----------
@@ -184,7 +191,7 @@ public class PaymentService {
 
     public static PaymentDTO.Response toResponse(Payment payment) {
         return new PaymentDTO.Response(
-            payment.getId(), payment.getPaymentId(), payment.getPaymentLinkId(), payment.getOrderId(), payment.getamount(),
+            payment.getId(), payment.getPaymentId(), payment.getGatewayReferenceId(), payment.getOrderId(), payment.getamount(),
                 payment.getCurrency(), payment.getPaymentStatus(), payment.getPaymentMethod(),
                 payment.getPaymentLinkUrl(), payment.getCreatedAt(), payment.getUpdatedAt());
     }

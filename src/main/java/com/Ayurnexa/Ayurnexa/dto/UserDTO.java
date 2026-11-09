@@ -38,4 +38,5 @@ public final class UserDTO {
         long expiresIn,
         Response user
     ) {}
+
 }

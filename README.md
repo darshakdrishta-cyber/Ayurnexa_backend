@@ -1,6 +1,6 @@
 # AyurNexa Backend API
 
-Spring Boot 4 REST API backed by MongoDB. Application endpoints require `X-API-Key`; routes marked with `@JWTAnnotation` also require a user Bearer JWT. The Razorpay webhook is excluded from the API-key check and authenticated with Razorpay's HMAC signature.
+Spring Boot 4 REST API backed by MongoDB. Application endpoints require `X-API-Key`; routes marked with `@JWTAnnotation` also require a user JWT.
 
 ## Environment
 
@@ -12,13 +12,18 @@ Copy `.env.example` to `.env` for local development and replace the placeholders
 | `MONGODB_URI` | No; defaults to local MongoDB | MongoDB connection string |
 | `JWT_SECRET` | Yes | HMAC signing and verification key; provide at least 32 random bytes |
 | `JWT_EXPIRATION_MS` | No; defaults to `3600000` | JWT lifetime in milliseconds |
-| `API_KEY` | Yes | Value expected in `X-API-Key` for `/api/**`, except the Razorpay webhook |
+| `API_KEY` | Yes | Value expected in `X-API-Key` for `/api/**` |
 | `CORS_ALLOWED_ORIGINS` | No; defaults to `*` | Comma-separated browser frontend origins permitted to call the API; `*` permits all origins |
-| `RAZORPAY_KEY_ID` | Yes | Razorpay API key ID |
-| `RAZORPAY_KEY_SECRET` | Yes | Razorpay API key secret; used only by the backend |
-| `RAZORPAY_WEBHOOK_SECRET` | Yes | Secret configured for the Razorpay webhook; distinct from the API key secret |
-| `RAZORPAY_CALLBACK_URL` | No | Optional callback URL included with Payment Links |
-| `RAZORPAY_LINK_EXPIRY_MINUTES` | No; defaults to `30` | Payment Link expiry duration |
+| `PAYU_CLIENT_ID` | Required for online payments | PayU Payment Links OAuth client ID; backend only |
+| `PAYU_CLIENT_SECRET` | Required for online payments | PayU Payment Links OAuth client secret; backend only |
+| `PAYU_MERCHANT_ID` | Required for online payments | PayU merchant ID used in the Payment Links API header |
+| `PAYU_ENVIRONMENT` | No; defaults to `uat` | `uat` for testing or `production` for live payments |
+| `SUPABASE_URL` | Required for uploads | Supabase project URL; also used to derive the S3-compatible endpoint |
+| `SUPABASE_S3_ACCESS_KEY_ID` | Required for uploads | Supabase Storage S3 access key ID; backend only |
+| `SUPABASE_S3_SECRET_ACCESS_KEY` | Required for uploads | Supabase Storage S3 secret access key; backend only |
+| `SUPABASE_S3_REGION` | Required for uploads | Supabase project Storage region |
+| `SUPABASE_S3_ENDPOINT` | No | Optional S3 endpoint override; defaults to `${SUPABASE_URL}/storage/v1/s3` |
+| `SUPABASE_BUCKET` | No; defaults to `products` | Supabase Storage bucket used for uploads |
 
 Generate local secrets, for example:
 
@@ -27,11 +32,11 @@ openssl rand -base64 32
 openssl rand -hex 32
 ```
 
-Use separate values for `JWT_SECRET`, `API_KEY`, and `RAZORPAY_WEBHOOK_SECRET`. `CORS_ALLOWED_ORIGINS=*` permits requests from every origin. This API also permits credentialed CORS requests, so allowing every origin increases the risk of cross-site access; restrict this setting to trusted frontend origins in production whenever possible. You can provide a comma-separated list of exact frontend origins (without paths) instead.
+Use separate values for `JWT_SECRET` and `API_KEY`. `CORS_ALLOWED_ORIGINS=*` permits requests from every origin. The API does not enable cookie credentials; browser clients should send the API key and bearer JWT headers without `credentials: "include"`. Restrict this setting to trusted frontend origins in production. Provide comma-separated exact origins (scheme, host, and optional port; no paths), for example `https://shop.example.com,http://localhost:5173`.
 
 ## Important API-Key Note
 
-`X-API-Key` is an additional shared request gate, not user authentication. Any key embedded in browser JavaScript or a mobile app can be extracted by users; it cannot protect a public frontend API from unauthorized callers. Keep user authentication and authorization on the JWT and backend. For production public clients, consider removing the static API-key requirement from browser-facing routes and using rate limits/origin controls instead. Never expose `RAZORPAY_KEY_SECRET`, `RAZORPAY_WEBHOOK_SECRET`, or `JWT_SECRET` to the frontend.
+`X-API-Key` is an additional shared request gate, not user authentication. Any key embedded in browser JavaScript or a mobile app can be extracted by users; it cannot protect a public frontend API from unauthorized callers. Keep user authentication and authorization on the JWT and backend. For production public clients, consider removing the static API-key requirement from browser-facing routes and using rate limits/origin controls instead. Never expose `PAYU_CLIENT_SECRET` or `JWT_SECRET` to the frontend.
 
 ## Base URL and Headers
 
@@ -119,11 +124,11 @@ curl -i -X POST "$BASE_URL/api/payments" \
 	-H "Content-Type: application/json" \
 	-d '{"amount":499.00,"paymentMethod":"COD","idempotencyKey":"checkout-<unique-request-id>"}'
 
-# Create Razorpay UPI Payment Link
+# Create PayU hosted payment link
 curl -i -X POST "$BASE_URL/api/payments" \
 	-H "X-API-Key: $API_KEY" -H "Authorization: Bearer $TOKEN" \
 	-H "Content-Type: application/json" \
-	-d '{"amount":499.00,"paymentMethod":"UPI","idempotencyKey":"checkout-<unique-request-id>","customerName":"Demo User","customerEmail":"demo@example.com"}'
+	-d '{"amount":499.00,"paymentMethod":"UPI","idempotencyKey":"checkout-<unique-request-id>"}'
 
 # List current user's payments / get one / update eligible pending payment / delete eligible pending payment
 curl -i "$BASE_URL/api/payments" -H "X-API-Key: $API_KEY" -H "Authorization: Bearer $TOKEN"
@@ -135,7 +140,17 @@ curl -i -X DELETE "$BASE_URL/api/payments/$PAYMENT_RECORD_ID" \
 	-H "X-API-Key: $API_KEY" -H "Authorization: Bearer $TOKEN"
 ```
 
-Do not mark a payment successful from the frontend. Razorpay payment status is changed only by its verified webhook. A payment with a Payment Link or a terminal status cannot be edited/deleted.
+The online payment response contains `paymentLinkUrl`; redirect the customer to it for PayU-hosted checkout. After PayU redirects the customer back to your frontend, verify the local payment:
+
+```bash
+curl -i -X POST "$BASE_URL/api/payments/$PAYMENT_RECORD_ID/verify" \
+  -H "X-API-Key: $API_KEY" \
+  -H "Authorization: Bearer $JWT"
+```
+
+The backend checks the link status with PayU and only marks the record `SUCCESS` when the amount collected matches the saved amount. Do not mark a payment successful from the frontend. A payment with a PayU payment link or a terminal status cannot be edited/deleted.
+
+The OAuth Payment Links API uses the client ID, client secret, and merchant ID. The classic PayU merchant key and salt are not used by this OAuth flow. Keep PayU credentials server-side, and rotate any credentials pasted into chat or otherwise exposed.
 
 ## Orders
 
@@ -158,26 +173,44 @@ curl -i -X DELETE "$BASE_URL/api/orders/$ORDER_ID" \
 	-H "X-API-Key: $API_KEY" -H "Authorization: Bearer $TOKEN"
 ```
 
-## Razorpay Webhook
-
-Configure this public URL in the Razorpay dashboard:
-
-```text
-POST https://<public-railway-domain>/api/payments/razorpay/webhook
-```
-
-Subscribe to `payment_link.paid`. The endpoint deliberately does not require `X-API-Key` or a user JWT. It validates `X-Razorpay-Signature` against the exact raw body using `RAZORPAY_WEBHOOK_SECRET`. It then checks the saved Payment reference, Payment Link ID, and exact amount before marking the Payment `SUCCESS` and storing the gateway payment ID. Repeated paid events are safe. Invalid signatures receive `401`; malformed/mismatched payment events receive `400`; success receives `200`. After payment is confirmed, the frontend can create the Order using the local payment record `id`.
-
-Do not fake a Razorpay webhook with curl in production. For local integration testing, use Razorpay's test mode and configure a reachable webhook tunnel; manually posting a request without a valid HMAC signature is expected to return `401`.
-
 ## Other Routes
 
 `GET /api/test` and `GET /api/mongo/test-mongo` require `X-API-Key`. The Mongo ping route reports database connectivity; it is not a general DB health endpoint.
 
+## Supabase Storage Uploads
+
+Uploads go from the frontend to this backend, then from the backend to Supabase's S3-compatible API. The browser never calls Supabase Storage directly, so Supabase bucket CORS settings are not needed for this upload path. S3 credentials stay on the backend; upload metadata is saved in MongoDB's `uploads` collection.
+
+The upload endpoint requires `X-API-Key` and a user JWT. Send multipart form data (do not set `Content-Type` manually; curl supplies the multipart boundary):
+
+```bash
+curl -i -X POST "$BASE_URL/api/uploads" \
+  -H "X-API-Key: $API_KEY" \
+  -H "Authorization: Bearer $JWT" \
+  -F "file=@./image.jpg"
+```
+
+The `201` response includes an absolute `url` for displaying the uploaded image. It is a random, unguessable capability URL, so anyone who has the link can view the file; do not treat it as private. Use the URL directly as an image `src` or fetch it without Supabase credentials:
+
+```bash
+curl -i "$UPLOAD_URL" -o downloaded-file
+```
+
+For private authenticated downloads, use the returned `id` instead; that route requires the uploader's API key and JWT:
+
+```bash
+curl -i "$BASE_URL/api/uploads/$UPLOAD_ID" \
+  -H "X-API-Key: $API_KEY" \
+  -H "Authorization: Bearer $JWT" \
+  -o downloaded-file
+```
+
+For browser API calls, configure `CORS_ALLOWED_ORIGINS` to include the exact frontend origin (for example `https://shop.example.com` or `http://localhost:5173`). Do not enable `credentials: "include"`; authentication is sent through the allowed `X-API-Key` and `Authorization` headers.
+
 ## Common Responses
 
-- `400`: invalid request body, amount mismatch, or malformed webhook
-- `401`: missing/invalid API key, missing/invalid/expired JWT, or invalid webhook signature
+- `400`: invalid request body or amount mismatch
+- `401`: missing/invalid API key or missing/invalid/expired JWT
 - `403`: authenticated user lacks the required admin role
 - `404`: requested resource does not exist or does not belong to the caller
 - `409`: duplicate resource or payment conflict

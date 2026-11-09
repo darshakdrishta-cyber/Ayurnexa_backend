@@ -40,7 +40,7 @@ public class JwtWebConfiguration implements WebMvcConfigurer {
     public void addInterceptors(InterceptorRegistry registry) {
         registry.addInterceptor(apiKeyInterceptor)
                 .addPathPatterns("/api/**")
-                .excludePathPatterns("/api/payments/razorpay/webhook");
+                .excludePathPatterns("/api/uploads/public/**");
         registry.addInterceptor(jwtAnnotationInterceptor);
     }
 

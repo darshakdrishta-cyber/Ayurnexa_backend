@@ -19,7 +19,7 @@ public class Payment {
     private String paymentId;          // Gateway Payment ID (e.g., pay_123456789)
 
     @Indexed(unique = true, sparse = true)
-    private String paymentLinkId;      // Razorpay Payment Link ID (plink_...)
+    private String gatewayReferenceId;
 
     @Indexed(unique = true)
     private String idempotencyKey;     // Prevents duplicate charges/requests
@@ -55,8 +55,8 @@ public class Payment {
     
     public String getPaymentId() { return paymentId; }
     public void setPaymentId(String paymentId) { this.paymentId = paymentId; }
-    public String getPaymentLinkId() { return paymentLinkId; }
-    public void setPaymentLinkId(String paymentLinkId) { this.paymentLinkId = paymentLinkId; }
+    public String getGatewayReferenceId() { return gatewayReferenceId; }
+    public void setGatewayReferenceId(String gatewayReferenceId) { this.gatewayReferenceId = gatewayReferenceId; }
 
     public String getIdempotencyKey() { return idempotencyKey; }
     public void setIdempotencyKey(String idempotencyKey) { this.idempotencyKey = idempotencyKey; }

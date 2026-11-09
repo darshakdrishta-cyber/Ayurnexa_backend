@@ -28,7 +28,7 @@ public final class PaymentDTO {
     public record Response(
             String id,
             String paymentId,
-            String paymentLinkId,
+            String gatewayReferenceId,
             String orderId,
             BigDecimal amount,
             String currency,

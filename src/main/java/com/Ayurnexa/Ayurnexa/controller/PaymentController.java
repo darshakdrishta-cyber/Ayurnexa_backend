@@ -57,6 +57,14 @@ public class PaymentController {
     }
 
     @JWTAnnotation
+    @PostMapping("/{paymentRecordId}/verify")
+    public PaymentDTO.Response verify(
+            @PathVariable String paymentRecordId,
+            Authentication authentication) {
+        return paymentService.verifyPayuPayment(currentUserId(authentication), paymentRecordId);
+    }
+
+    @JWTAnnotation
     @PutMapping("/{paymentRecordId}")
     public PaymentDTO.Response update(
             @PathVariable String paymentRecordId,
