@@ -52,7 +52,6 @@ public class UploadController {
     }
 
     @JWTAnnotation
-    @JWTAnnotation
     @PostMapping
     public ResponseEntity<?> upload(
             @RequestParam("file") MultipartFile file,
