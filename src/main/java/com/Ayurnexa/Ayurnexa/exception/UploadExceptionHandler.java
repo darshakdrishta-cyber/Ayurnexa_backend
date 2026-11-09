@@ -16,8 +16,8 @@ public class UploadExceptionHandler {
     public ResponseEntity<Map<String, Object>> handleFileTooLarge(MaxUploadSizeExceededException exception) {
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("error", "FILE_TOO_LARGE");
-        body.put("message", "Uploaded file exceeds the maximum allowed size of 10 MB");
-        body.put("maxFileSizeBytes", 10 * 1024 * 1024L);
+        body.put("message", "Uploaded file exceeds the maximum allowed size of 50 MB");
+        body.put("maxFileSizeBytes", 50L * 1024 * 1024);
         return ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE).body(body);
     }
 
