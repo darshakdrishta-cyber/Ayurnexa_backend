@@ -4,6 +4,8 @@ import com.Ayurnexa.Ayurnexa.Service.SupabaseStorageService;
 import com.Ayurnexa.Ayurnexa.config.JWTAnnotation;
 import com.Ayurnexa.Ayurnexa.dto.upload.UploadDTO;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
+import java.util.Set;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
@@ -25,6 +27,20 @@ import org.springframework.web.server.ResponseStatusException;
 @RequestMapping("/api/uploads")
 public class UploadController {
 
+    private static final Set<String> ALLOWED_CONTENT_TYPES = Set.of(
+            "image/jpeg", "image/jpg", "image/png", "image/gif", "image/webp",
+            "image/avif", "image/bmp", "image/svg+xml",
+            "application/pdf",
+            "text/plain",
+            "application/zip"
+    );
+
+    private static final List<String> DANGEROUS_EXTENSIONS = List.of(
+            ".exe", ".bat", ".cmd", ".com", ".php", ".php3", ".php4", ".php5",
+            ".phtml", ".asp", ".aspx", ".ashx", ".jsp", ".jspx", ".js", ".vbs",
+            ".wsf", ".cgi", ".pl", ".py", ".rb", ".sh", ".html", ".htm"
+    );
+
     private final SupabaseStorageService storageService;
 
     public UploadController(SupabaseStorageService storageService) {
@@ -37,11 +53,42 @@ public class UploadController {
     public UploadDTO.UploadResponse upload(
             @RequestParam("file") MultipartFile file,
             Authentication authentication) {
+        if (file == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "No file was provided");
+        }
         if (file.isEmpty()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Uploaded file must not be empty");
         }
+        String originalFilename = file.getOriginalFilename();
+        if (originalFilename == null || originalFilename.isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Uploaded file must have a valid name");
+        }
+        String contentType = file.getContentType();
+        if (contentType == null || contentType.isBlank()) {
+            contentType = "application/octet-stream";
+        }
+        if (!ALLOWED_CONTENT_TYPES.contains(contentType)) {
+            throw new ResponseStatusException(HttpStatus.UNSUPPORTED_MEDIA_TYPE,
+                    "Unsupported file type: " + contentType);
+        }
+        String lowerName = originalFilename.toLowerCase();
+        for (String dangerous : DANGEROUS_EXTENSIONS) {
+            if (lowerName.endsWith(dangerous)) {
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                        "File extension not allowed: " + dangerous);
+            }
+        }
         String ownerEmail = authentication == null ? "anonymous" : authentication.getName();
-        SupabaseStorageService.UploadResult result = storageService.upload(file, ownerEmail);
+        SupabaseStorageService.UploadResult result;
+        try {
+            result = storageService.upload(file, ownerEmail);
+        } catch (IllegalStateException exception) {
+            String message = exception.getMessage() != null ? exception.getMessage() : "Upload failed";
+            if (message.contains("not configured")) {
+                throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, message);
+            }
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, message);
+        }
         var upload = result.upload();
         String url = ServletUriComponentsBuilder.fromCurrentContextPath()
                 .path("/api/uploads/public/")
