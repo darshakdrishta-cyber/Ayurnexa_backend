@@ -8,6 +8,7 @@ import org.springframework.http.HttpMethod;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.mock.web.MockMultipartFile;
 
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -60,6 +61,22 @@ class AyurnexaApplicationTests {
 				.andExpect(header().string(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN, "http://localhost:5173"))
 				.andExpect(header().string(HttpHeaders.ACCESS_CONTROL_ALLOW_METHODS,
 						org.hamcrest.Matchers.containsString("GET")));
+	}
+
+	@Test
+	void uploadRequiresApiKeyBeforeJwt() throws Exception {
+		mockMvc.perform(MockMvcRequestBuilders.multipart("/api/uploads")
+				.file(new MockMultipartFile("file", "image.jpg", "image/jpeg", new byte[] {1}))
+				.header("Authorization", "Bearer invalid-token"))
+				.andExpect(status().isUnauthorized());
+	}
+
+	@Test
+	void uploadDoesNotRequireJwtWhenApiKeyIsValid() throws Exception {
+		mockMvc.perform(MockMvcRequestBuilders.multipart("/api/uploads")
+				.file(new MockMultipartFile("file", "image.jpg", "image/jpeg", new byte[0]))
+				.header("X-API-Key", "test-only-api-key"))
+				.andExpect(status().isBadRequest());
 	}
 
 }

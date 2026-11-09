@@ -62,7 +62,7 @@ public class SupabaseStorageService {
 
     public UploadResult upload(MultipartFile file, String ownerEmail) {
         S3Client client = getS3Client();
-        String objectKey = "products/" + UUID.randomUUID();
+        String objectKey = "Products/" + UUID.randomUUID();
         String publicAccessToken = createPublicAccessToken();
         String contentType = file.getContentType() == null || file.getContentType().isBlank()
                 ? "application/octet-stream"

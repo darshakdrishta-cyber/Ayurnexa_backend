@@ -45,7 +45,7 @@ public class ProductController {
         return productService.listActive();
     }
 
-    @JWTAnnotation
+  //  @JWTAnnotation
     @GetMapping("/all")
     public List<ProductDTO.Response> listAll(Authentication authentication) {
         requireAdmin(authentication);
@@ -58,13 +58,13 @@ public class ProductController {
         return productService.get(productId);
     }
 
-    @JWTAnnotation
+   // @JWTAnnotation
     @GetMapping("/search")
     public List<ProductDTO.Response> searchByName(@RequestParam String name) {
         return productService.searchByName(name);
     }
 
-    @JWTAnnotation
+   // @JWTAnnotation
     @PatchMapping("/{productId}")
     public ProductDTO.Response update(@PathVariable String productId,
                                       @Valid @RequestBody ProductDTO.UpdateRequest request,
@@ -73,7 +73,7 @@ public class ProductController {
         return productService.update(productId, request);
     }
 
-    @JWTAnnotation
+   // @JWTAnnotation
     @PatchMapping("/{productId}/toggle")
     public ProductDTO.Response toggleActive(@PathVariable String productId,
                                             Authentication authentication) {
@@ -81,7 +81,7 @@ public class ProductController {
         return productService.toggleActive(productId);
     }
 
-    @JWTAnnotation
+    //@JWTAnnotation
     @DeleteMapping("/{productId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void delete(@PathVariable String productId, Authentication authentication) {

@@ -31,7 +31,7 @@ public class UploadController {
         this.storageService = storageService;
     }
 
-    @JWTAnnotation
+    //@JWTAnnotation
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public UploadDTO.UploadResponse upload(
@@ -40,7 +40,8 @@ public class UploadController {
         if (file.isEmpty()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Uploaded file must not be empty");
         }
-        SupabaseStorageService.UploadResult result = storageService.upload(file, authentication.getName());
+        String ownerEmail = authentication == null ? "anonymous" : authentication.getName();
+        SupabaseStorageService.UploadResult result = storageService.upload(file, ownerEmail);
         var upload = result.upload();
         String url = ServletUriComponentsBuilder.fromCurrentContextPath()
                 .path("/api/uploads/public/")
