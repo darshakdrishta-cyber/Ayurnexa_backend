@@ -39,7 +39,7 @@ public class ProductController {
         return productService.create(request);
     }
 
-   // @JWTAnnotation
+ @JWTAnnotation
     @GetMapping
     public List<ProductDTO.Response> listActive() {
         return productService.listActive();
@@ -52,19 +52,19 @@ public class ProductController {
         return productService.listAll();
     }
 
-   // @JWTAnnotation
+ @JWTAnnotation
     @GetMapping("/{productId}")
     public ProductDTO.Response get(@PathVariable String productId) {
         return productService.get(productId);
     }
 
-   // @JWTAnnotation
+ @JWTAnnotation
     @GetMapping("/search")
     public List<ProductDTO.Response> searchByName(@RequestParam String name) {
         return productService.searchByName(name);
     }
 
-   // @JWTAnnotation
+ @JWTAnnotation
     @PatchMapping("/{productId}")
     public ProductDTO.Response update(@PathVariable String productId,
                                       @Valid @RequestBody ProductDTO.UpdateRequest request,
@@ -73,7 +73,7 @@ public class ProductController {
         return productService.update(productId, request);
     }
 
-   // @JWTAnnotation
+ @JWTAnnotation
     @PatchMapping("/{productId}/toggle")
     public ProductDTO.Response toggleActive(@PathVariable String productId,
                                             Authentication authentication) {
