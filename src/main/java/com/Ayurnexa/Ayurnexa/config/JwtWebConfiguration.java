@@ -54,7 +54,7 @@ public class JwtWebConfiguration implements WebMvcConfigurer {
                 .allowedOriginPatterns(allowedOriginPatterns)
                 .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH")
                 .allowedHeaders("Authorization", "Content-Type", "X-API-Key", "X-Idempotency-Key")
-                .allowCredentials(false)
+                .allowCredentials(true)
                 .maxAge(3600);
     }
 
@@ -64,7 +64,7 @@ public class JwtWebConfiguration implements WebMvcConfigurer {
         configuration.setAllowedOriginPatterns(java.util.Arrays.asList(allowedOriginPatterns));
         configuration.setAllowedMethods(java.util.Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
         configuration.setAllowedHeaders(java.util.Arrays.asList("Authorization", "Content-Type", "X-API-Key", "X-Idempotency-Key"));
-        configuration.setAllowCredentials(false);
+        configuration.setAllowCredentials(true);
         configuration.setMaxAge(3600L);
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/api/**", configuration);
