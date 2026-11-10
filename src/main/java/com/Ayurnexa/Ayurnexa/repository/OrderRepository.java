@@ -10,6 +10,8 @@ import com.Ayurnexa.Ayurnexa.model.order.Order;
 public interface OrderRepository extends MongoRepository<Order, String> {
     Optional<Order> findByOrderId(String orderId);
     List<Order> findByUserIdOrderByCreatedAtDesc(String userId);
+    List<Order> findByUserIdAndActiveTrueOrderByCreatedAtDesc(String userId);
+    List<Order> findByActiveTrueOrderByCreatedAtDesc();
     Optional<Order> findByPaymentId(String paymentId);
     boolean existsByItemsProductId(String productId);
 }

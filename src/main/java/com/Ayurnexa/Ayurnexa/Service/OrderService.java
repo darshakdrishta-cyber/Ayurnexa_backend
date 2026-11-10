@@ -85,13 +85,13 @@ public class OrderService {
     }
 
     public List<OrderDTO.Response> list(String userId) {
-        return orderRepository.findByUserIdOrderByCreatedAtDesc(userId).stream()
+        return orderRepository.findByUserIdAndActiveTrueOrderByCreatedAtDesc(userId).stream()
                 .map(this::toResponse)
                 .toList();
     }
 
     public OrderDTO.Response get(String userId, String orderId) {
-        return toResponse(findOwnedOrder(userId, orderId));
+        return toResponse(findOwnedActiveOrder(userId, orderId));
     }
 
     public OrderDTO.Response update(String userId, String orderId, OrderDTO.UpdateRequest request) {
@@ -221,12 +221,20 @@ public class OrderService {
     }
 
     public void delete(String userId, String orderId) {
-        orderRepository.delete(findOwnedOrder(userId, orderId));
+        Order order = findOwnedActiveOrder(userId, orderId);
+        order.setActive(false);
+        orderRepository.save(order);
     }
 
     private Order findOwnedOrder(String userId, String orderId) {
         return orderRepository.findByOrderId(orderId)
                 .filter(order -> userId.equals(order.getUserId()))
+                .orElseThrow(() -> new NoSuchElementException("Order not found"));
+    }
+
+    private Order findOwnedActiveOrder(String userId, String orderId) {
+        return orderRepository.findByOrderId(orderId)
+                .filter(order -> userId.equals(order.getUserId()) && order.isActive())
                 .orElseThrow(() -> new NoSuchElementException("Order not found"));
     }
 
