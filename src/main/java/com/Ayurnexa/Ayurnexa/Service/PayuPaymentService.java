@@ -90,10 +90,10 @@ public class PayuPaymentService {
             }
             return new PaymentLinkResult(invoiceNumber, paymentLink);
         } catch (HttpStatusCodeException exception) {
-            String body = truncate(exception.getResponseBodyAsString());
+            String errorBody = truncate(exception.getResponseBodyAsString());
             throw new PayuException(
                     "PayU rejected the payment-link request (HTTP " + exception.getStatusCode().value() + ")"
-                            + (body.isBlank() ? "" : ": " + body),
+                            + (errorBody.isBlank() ? "" : ": " + errorBody),
                     exception);
         } catch (RestClientException exception) {
             throw new PayuException("Could not reach PayU payment links", exception);
