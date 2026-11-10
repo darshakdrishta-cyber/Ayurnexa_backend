@@ -5,6 +5,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
@@ -19,7 +20,7 @@ public final class OrderDTO {
             @Min(1) int quantity) {}
 
     public record CreateRequest(
-            @NotBlank String paymentId,
+            @JsonAlias("paymentId") @NotBlank String paymentRecordId,
             @NotEmpty List<@Valid ItemRequest> items,
             LocalDate expectedDeliveryDate) {}
 

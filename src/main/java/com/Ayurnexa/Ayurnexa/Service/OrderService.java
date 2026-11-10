@@ -31,7 +31,7 @@ public class OrderService {
     }
 
     public OrderDTO.Response create(String userId, OrderDTO.CreateRequest request) {
-        Payment payment = paymentRepository.findById(request.paymentId())
+        Payment payment = paymentRepository.findById(request.paymentRecordId())
                 .filter(candidate -> userId.equals(candidate.getUserId()))
                 .orElseThrow(() -> new NoSuchElementException("Payment not found"));
         if (!PaymentService.COD.equalsIgnoreCase(payment.getPaymentMethod())

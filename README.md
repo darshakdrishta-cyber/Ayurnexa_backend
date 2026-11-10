@@ -124,6 +124,8 @@ curl -i -X POST "$BASE_URL/api/payments" \
 	-H "Content-Type: application/json" \
 	-d '{"amount":499.00,"paymentMethod":"COD","idempotencyKey":"checkout-<unique-request-id>"}'
 
+# COD creates a PENDING local Payment record; use its `id` for order creation.
+# The gateway `paymentId` is not used for COD and may be empty.
 # Create PayU hosted payment link
 curl -i -X POST "$BASE_URL/api/payments" \
 	-H "X-API-Key: $API_KEY" -H "Authorization: Bearer $TOKEN" \
@@ -157,11 +159,13 @@ The OAuth Payment Links API uses the client ID, client secret, and merchant ID. 
 All Order routes require API key + JWT and operate on the logged-in user's orders. Create requires a saved Payment record: payment method must be COD or status must already be `SUCCESS`. Item prices and order total are computed from the Product catalog; the submitted total is never trusted.
 
 ```bash
-# Create; paymentId is the local Payment response's `id`, item productId is a Product business ID.
+# Create; paymentRecordId is the local Payment response's `id`, item productId is a Product business ID.
 curl -i -X POST "$BASE_URL/api/orders" \
 	-H "X-API-Key: $API_KEY" -H "Authorization: Bearer $TOKEN" \
 	-H "Content-Type: application/json" \
-	-d '{"paymentId":"<payment-record-id>","expectedDeliveryDate":"2026-10-30","items":[{"productId":"<product-business-id>","quantity":2}]}'
+	-d '{"paymentRecordId":"<payment-record-id>","expectedDeliveryDate":"2026-10-30","items":[{"productId":"<product-business-id>","quantity":2}]}'
+
+# The legacy request property `paymentId` is still accepted as an alias for `paymentRecordId`.
 
 # List/get/update/delete by business orderId
 curl -i "$BASE_URL/api/orders" -H "X-API-Key: $API_KEY" -H "Authorization: Bearer $TOKEN"
