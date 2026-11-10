@@ -7,12 +7,14 @@ import java.util.NoSuchElementException;
 
 import com.Ayurnexa.Ayurnexa.dto.order.OrderDTO;
 import com.Ayurnexa.Ayurnexa.model.Payment.Payment;
+import com.Ayurnexa.Ayurnexa.model.User.User;
 import com.Ayurnexa.Ayurnexa.model.order.Order;
 import com.Ayurnexa.Ayurnexa.model.order.OrderItem;
 import com.Ayurnexa.Ayurnexa.model.product.Product;
 import com.Ayurnexa.Ayurnexa.repository.OrderRepository;
 import com.Ayurnexa.Ayurnexa.repository.PaymentRepository;
 import com.Ayurnexa.Ayurnexa.repository.ProductRepository;
+import com.Ayurnexa.Ayurnexa.repository.UserRepository;
 import org.springframework.stereotype.Service;
 
 @Service
