@@ -110,6 +110,34 @@ public class OrderService {
         return toResponse(saved, payment == null ? null : payment.getPaymentStatus());
     }
 
+    public OrderDTO.Response getByOrderId(String orderId) {
+        Order order = orderRepository.findByOrderId(orderId)
+                .orElseThrow(() -> new NoSuchElementException("Order not found: " + orderId));
+        return toResponse(order);
+    }
+
+    public OrderDTO.Response adminUpdateOrderStatus(String orderId, OrderDTO.UpdateRequest request) {
+        Order order = orderRepository.findByOrderId(orderId)
+                .orElseThrow(() -> new NoSuchElementException("Order not found: " + orderId));
+        if (request.orderStatus() == null && request.orderProgress() == null
+                && request.expectedDeliveryDate() == null && request.deliveryDate() == null
+                && request.active() == null) {
+            throw new IllegalArgumentException("At least one order field must be provided");
+        }
+        if (request.orderStatus() != null) {
+            order.setOrderStatus(request.orderStatus().trim());
+            order.setStatus(request.orderStatus().trim());
+        }
+        if (request.orderProgress() != null) order.setOrderProgress(request.orderProgress().trim());
+        if (request.expectedDeliveryDate() != null) order.setExpectedDeliveryDate(request.expectedDeliveryDate());
+        if (request.deliveryDate() != null) order.setDeliveryDate(request.deliveryDate());
+        if (request.active() != null) order.setActive(request.active());
+
+        Order saved = orderRepository.save(order);
+        Payment payment = paymentRepository.findById(saved.getPaymentId()).orElse(null);
+        return toResponse(saved, payment == null ? null : payment.getPaymentStatus());
+    }
+
     public void delete(String userId, String orderId) {
         orderRepository.delete(findOwnedOrder(userId, orderId));
     }
