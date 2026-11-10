@@ -45,7 +45,7 @@ public class ProductController {
         return productService.listActive();
     }
 
-    @JWTAnnotation
+   // @JWTAnnotation
     @GetMapping("/all")
     public List<ProductDTO.Response> listAll() {
         return productService.listAll();
