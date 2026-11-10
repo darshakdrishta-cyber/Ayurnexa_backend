@@ -21,13 +21,16 @@ public class OrderService {
     private final OrderRepository orderRepository;
     private final PaymentRepository paymentRepository;
     private final ProductRepository productRepository;
+    private final UserRepository userRepository;
 
     public OrderService(OrderRepository orderRepository,
                         PaymentRepository paymentRepository,
-                        ProductRepository productRepository) {
+                        ProductRepository productRepository,
+                        UserRepository userRepository) {
         this.orderRepository = orderRepository;
         this.paymentRepository = paymentRepository;
         this.productRepository = productRepository;
+        this.userRepository = userRepository;
     }
 
     public OrderDTO.Response create(String userId, OrderDTO.CreateRequest request) {
@@ -138,6 +141,83 @@ public class OrderService {
         return toResponse(saved, payment == null ? null : payment.getPaymentStatus());
     }
 
+    public List<OrderDTO.AdminOrderResponse> listAllOrdersForAdmin() {
+        return orderRepository.findAll().stream()
+                .map(this::toAdminOrderResponse)
+                .toList();
+    }
+
+    public OrderDTO.Response adminUpdateStatusOnly(String orderId, String status) {
+        Order order = orderRepository.findByOrderId(orderId)
+                .orElseThrow(() -> new NoSuchElementException("Order not found: " + orderId));
+        if (status == null || status.trim().isEmpty()) {
+            throw new IllegalArgumentException("Status cannot be empty");
+        }
+        order.setOrderStatus(status.trim());
+        order.setStatus(status.trim());
+        Order saved = orderRepository.save(order);
+        return toResponse(saved);
+    }
+
+    private OrderDTO.AdminOrderResponse toAdminOrderResponse(Order order) {
+        User user = null;
+        if (order.getUserId() != null) {
+            user = userRepository.findByUserId(order.getUserId())
+                    .or(() -> userRepository.findById(order.getUserId()))
+                    .orElse(null);
+        }
+
+        OrderDTO.AdminUserSummary userSummary = user == null ? null : new OrderDTO.AdminUserSummary(
+                user.getUserId(),
+                user.getUsername(),
+                user.getEmail(),
+                user.getPhoneNumber(),
+                user.getAddress()
+        );
+
+        List<OrderDTO.ItemResponse> items = order.getItems() == null ? List.of() : order.getItems().stream()
+                .map(this::toItemResponse)
+                .toList();
+
+        return new OrderDTO.AdminOrderResponse(
+                order.getOrderId(),
+                order.getPaymentMethod(),
+                order.getOrderStatus(),
+                order.getOrderProgress(),
+                order.getPrice(),
+                order.isActive(),
+                order.getExpectedDeliveryDate(),
+                order.getDeliveryDate(),
+                items,
+                userSummary,
+                order.getCreatedAt(),
+                order.getUpdatedAt()
+        );
+    }
+
+    private OrderDTO.ItemResponse toItemResponse(OrderItem item) {
+        Product product = productRepository.findByProductId(item.getProductId()).orElse(null);
+        OrderDTO.ProductSummary productSummary = product == null ? null : new OrderDTO.ProductSummary(
+                product.getProductId(),
+                product.getProductName(),
+                product.getProductDescription(),
+                product.getProductCategory(),
+                product.getProductWeight(),
+                product.getForm(),
+                product.getProductImage(),
+                product.getProductPrice()
+        );
+        return new OrderDTO.ItemResponse(
+                item.getOrderItemId(),
+                item.getProductId(),
+                item.getQuantity(),
+                item.getUnitPrice(),
+                item.getRating(),
+                item.getFeedback(),
+                productSummary
+        );
+    }
+
     public void delete(String userId, String orderId) {
         orderRepository.delete(findOwnedOrder(userId, orderId));
     }
@@ -149,18 +229,23 @@ public class OrderService {
     }
 
     private OrderDTO.Response toResponse(Order order) {
-        Payment payment = paymentRepository.findById(order.getPaymentId()).orElse(null);
-        return toResponse(order, payment == null ? null : payment.getPaymentStatus());
+        return toResponse(order, null);
     }
 
     private OrderDTO.Response toResponse(Order order, String paymentStatus) {
-        List<OrderDTO.ItemResponse> items = order.getItems().stream()
-                .map(item -> new OrderDTO.ItemResponse(item.getOrderItemId(), item.getProductId(),
-                        item.getQuantity(), item.getUnitPrice(), item.getRating(), item.getFeedback()))
+        List<OrderDTO.ItemResponse> items = order.getItems() == null ? List.of() : order.getItems().stream()
+                .map(this::toItemResponse)
                 .toList();
-        return new OrderDTO.Response(order.getOrderId(), order.getUserId(), order.getPaymentId(),
-                order.getPaymentMethod(), paymentStatus, order.getOrderStatus(), order.getOrderProgress(),
-                order.getPrice(), order.isActive(), order.getExpectedDeliveryDate(), order.getDeliveryDate(),
-                items, order.getCreatedAt(), order.getUpdatedAt());
+
+        return new OrderDTO.Response(
+                order.getOrderId(),
+                order.getPaymentMethod(),
+                order.getOrderStatus(),
+                order.getOrderProgress(),
+                order.getPrice(),
+                order.getExpectedDeliveryDate(),
+                order.getDeliveryDate(),
+                items
+        );
     }
 }

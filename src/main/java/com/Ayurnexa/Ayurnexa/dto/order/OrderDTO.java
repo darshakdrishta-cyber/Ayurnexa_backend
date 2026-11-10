@@ -31,20 +31,45 @@ public final class OrderDTO {
             LocalDate deliveryDate,
             Boolean active) {}
 
+    public record ProductSummary(
+            String productId,
+            String productName,
+            String productDescription,
+            String productCategory,
+            String productWeight,
+            String productType,
+            String productImage,
+            BigDecimal productPrice) {}
+
     public record ItemResponse(
             String orderItemId,
             String productId,
             int quantity,
             BigDecimal unitPrice,
             Integer rating,
-            String feedback) {}
+            String feedback,
+            ProductSummary product) {}
 
     public record Response(
             String orderId,
-            String userId,
-            String paymentId,
             String paymentMethod,
-            String paymentStatus,
+            String orderStatus,
+            String orderProgress,
+            BigDecimal price,
+            LocalDate expectedDeliveryDate,
+            LocalDate deliveryDate,
+            List<ItemResponse> items) {}
+
+    public record AdminUserSummary(
+            String userId,
+            String username,
+            String email,
+            String phoneNumber,
+            com.Ayurnexa.Ayurnexa.model.User.Address address) {}
+
+    public record AdminOrderResponse(
+            String orderId,
+            String paymentMethod,
             String orderStatus,
             String orderProgress,
             BigDecimal price,
@@ -52,6 +77,7 @@ public final class OrderDTO {
             LocalDate expectedDeliveryDate,
             LocalDate deliveryDate,
             List<ItemResponse> items,
+            AdminUserSummary user,
             Instant createdAt,
             Instant updatedAt) {}
 }

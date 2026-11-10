@@ -89,10 +89,20 @@ public class AdminController {
     }
 
     /**
+     * Get all orders with user information (Admin only).
+     */
+    @JWTAnnotation
+    @GetMapping("/orders")
+    public List<OrderDTO.AdminOrderResponse> getAllOrders(Authentication authentication) {
+        verifyAdminRole(authentication);
+        return orderService.listAllOrdersForAdmin();
+    }
+
+    /**
      * Get order details by orderId (Admin only).
      */
     @JWTAnnotation
-    @GetMapping("/orders/{orderId}")
+    @GetMapping({"/orders/{orderId}", "/order/{orderId}"})
     public OrderDTO.Response getOrderById(@PathVariable String orderId, Authentication authentication) {
         verifyAdminRole(authentication);
         try {
@@ -103,10 +113,33 @@ public class AdminController {
     }
 
     /**
-     * Update order status by orderId (Admin only).
+     * Update order status by orderId using request param ?status=... (Admin only).
+     * Accepts both PUT and PATCH on /orders/{orderId} and /order/{orderId}.
      */
     @JWTAnnotation
-    @PutMapping("/orders/{orderId}/status")
+    @RequestMapping(
+            value = {"/orders/{orderId}", "/order/{orderId}"},
+            method = {org.springframework.web.bind.annotation.RequestMethod.PUT, org.springframework.web.bind.annotation.RequestMethod.PATCH},
+            params = "status"
+    )
+    public OrderDTO.Response updateOrderStatusParam(@PathVariable String orderId,
+                                                    @RequestParam("status") String status,
+                                                    Authentication authentication) {
+        verifyAdminRole(authentication);
+        try {
+            return orderService.adminUpdateStatusOnly(orderId, status);
+        } catch (java.util.NoSuchElementException ex) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, ex.getMessage());
+        } catch (IllegalArgumentException ex) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, ex.getMessage());
+        }
+    }
+
+    /**
+     * Update order status by orderId with JSON body (Admin only).
+     */
+    @JWTAnnotation
+    @PutMapping({"/orders/{orderId}/status", "/order/{orderId}/status"})
     public OrderDTO.Response updateOrderStatus(@PathVariable String orderId,
                                               @Valid @RequestBody OrderDTO.UpdateRequest request,
                                               Authentication authentication) {
