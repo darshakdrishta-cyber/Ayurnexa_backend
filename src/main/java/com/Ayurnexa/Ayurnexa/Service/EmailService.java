@@ -17,12 +17,30 @@ public class EmailService {
     public EmailService(JavaMailSender mailSender,
                         @Value("${app.mail.from:}") String fromAddress) {
         this.mailSender = mailSender;
-        this.fromAddress = fromAddress;
+        this.fromAddress = fromAddress == null ? "" : fromAddress.trim();
+    }
+
+    public void sendMail(String to, String subject, String body) {
+        sendSimpleEmail(to, subject, body);
+    }
+
+    public void send(String to, String subject, String body, boolean html) {
+        requireValue(to, "to");
+        requireValue(subject, "subject");
+        requireValue(body, "body");
+        if (html) {
+            sendHtmlEmail(to, subject, body);
+        } else {
+            sendSimpleEmail(to, subject, body);
+        }
     }
 
     public void sendSimpleEmail(String to, String subject, String body) {
+        requireValue(to, "to");
+        requireValue(subject, "subject");
+        requireValue(body, "body");
         SimpleMailMessage message = new SimpleMailMessage();
-        if (fromAddress != null && !fromAddress.isBlank()) {
+        if (!fromAddress.isBlank()) {
             message.setFrom(fromAddress);
         }
         message.setTo(to);
@@ -31,15 +49,28 @@ public class EmailService {
         mailSender.send(message);
     }
 
-    public void sendHtmlEmail(String to, String subject, String htmlBody) throws MessagingException {
-        MimeMessage message = mailSender.createMimeMessage();
-        MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
-        if (fromAddress != null && !fromAddress.isBlank()) {
-            helper.setFrom(fromAddress);
+    public void sendHtmlEmail(String to, String subject, String htmlBody) {
+        requireValue(to, "to");
+        requireValue(subject, "subject");
+        requireValue(htmlBody, "body");
+        try {
+            MimeMessage message = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+            if (!fromAddress.isBlank()) {
+                helper.setFrom(fromAddress);
+            }
+            helper.setTo(to);
+            helper.setSubject(subject);
+            helper.setText(htmlBody, true);
+            mailSender.send(message);
+        } catch (MessagingException e) {
+            throw new IllegalStateException("Failed to send email to " + to, e);
         }
-        helper.setTo(to);
-        helper.setSubject(subject);
-        helper.setText(htmlBody, true);
-        mailSender.send(message);
+    }
+
+    private static void requireValue(String value, String field) {
+        if (value == null || value.isBlank()) {
+            throw new IllegalArgumentException(field + " must not be blank");
+        }
     }
 }

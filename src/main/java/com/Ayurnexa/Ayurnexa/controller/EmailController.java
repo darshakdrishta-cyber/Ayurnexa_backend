@@ -29,14 +29,6 @@ public class EmailController {
     @PostMapping("/send")
     @ResponseStatus(HttpStatus.ACCEPTED)
     public void send(@Valid @RequestBody SendRequest request) {
-        if (request.html()) {
-            try {
-                emailService.sendHtmlEmail(request.to(), request.subject(), request.body());
-            } catch (jakarta.mail.MessagingException e) {
-                throw new RuntimeException("Failed to send email: " + e.getMessage(), e);
-            }
-        } else {
-            emailService.sendSimpleEmail(request.to(), request.subject(), request.body());
-        }
+        emailService.send(request.to(), request.subject(), request.body(), request.html());
     }
 }
