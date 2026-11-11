@@ -5,6 +5,7 @@ import java.util.List;
 import com.Ayurnexa.Ayurnexa.Service.ProductService;
 import com.Ayurnexa.Ayurnexa.config.JWTAnnotation;
 import com.Ayurnexa.Ayurnexa.dto.product.ProductDTO;
+import com.Ayurnexa.Ayurnexa.security.PublicEndpoint;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
@@ -40,21 +41,25 @@ public class ProductController {
     }
 
     @GetMapping
+    @PublicEndpoint
     public List<ProductDTO.Response> listActive() {
         return productService.listActive();
     }
 
     @GetMapping("/all")
+    @PublicEndpoint
     public List<ProductDTO.Response> listAll() {
         return productService.listAll();
     }
 
     @GetMapping("/{productId}")
+    @PublicEndpoint
     public ProductDTO.Response get(@PathVariable String productId) {
         return productService.get(productId);
     }
 
     @GetMapping("/search")
+    @PublicEndpoint
     public List<ProductDTO.Response> searchByName(@RequestParam String name) {
         return productService.searchByName(name);
     }

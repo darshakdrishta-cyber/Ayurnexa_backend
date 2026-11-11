@@ -6,6 +6,7 @@ import java.security.MessageDigest;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.stereotype.Component;
+import org.springframework.web.method.HandlerMethod;
 import org.springframework.web.servlet.HandlerInterceptor;
 
 import jakarta.servlet.http.HttpServletRequest;
@@ -31,9 +32,8 @@ public class ApiKeyInterceptor implements HandlerInterceptor {
             return true;
         }
 
-        // Allow all GET requests on /api/products without requiring an API key
-        if ("GET".equalsIgnoreCase(request.getMethod()) && request.getRequestURI() != null
-                && request.getRequestURI().startsWith("/api/products")) {
+        if (handler instanceof HandlerMethod method
+                && method.hasMethodAnnotation(PublicEndpoint.class)) {
             return true;
         }
 

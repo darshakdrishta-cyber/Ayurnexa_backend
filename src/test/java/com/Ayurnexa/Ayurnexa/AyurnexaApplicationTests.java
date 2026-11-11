@@ -1,5 +1,7 @@
 package com.Ayurnexa.Ayurnexa;
 
+import com.Ayurnexa.Ayurnexa.Service.ProductService;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -9,7 +11,9 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
+import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -28,8 +32,19 @@ class AyurnexaApplicationTests {
 	@Autowired
 	private MockMvc mockMvc;
 
+	@MockitoBean
+	private ProductService productService;
+
 	@Test
 	void contextLoads() {
+	}
+
+	@Test
+	void productListDoesNotRequireApiKeyOrJwt() throws Exception {
+		when(productService.listActive()).thenReturn(List.of());
+
+		mockMvc.perform(MockMvcRequestBuilders.get("/api/products"))
+				.andExpect(status().isOk());
 	}
 
 	@Test
