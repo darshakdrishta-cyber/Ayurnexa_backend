@@ -68,7 +68,7 @@ public class ProductController {
         return productService.update(productId, request);
     }
 
-    @JWTAnnotation
+    //@JWTAnnotation
     @PatchMapping("/{productId}/toggle")
     public ProductDTO.Response toggleActive(@PathVariable String productId,
                                             Authentication authentication) {
