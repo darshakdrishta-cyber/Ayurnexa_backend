@@ -39,17 +39,17 @@ public class ProductController {
         return productService.create(request);
     }
 
-    //@GetMapping
+    @GetMapping
     public List<ProductDTO.Response> listActive() {
         return productService.listActive();
     }
 
-   // @GetMapping("/all")
+    @GetMapping("/all")
     public List<ProductDTO.Response> listAll() {
         return productService.listAll();
     }
 
-   // @GetMapping("/{productId}")
+    @GetMapping("/{productId}")
     public ProductDTO.Response get(@PathVariable String productId) {
         return productService.get(productId);
     }
