@@ -1,0 +1,21 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "java",
+      "name": "Debug Ayurnexa (Spring Boot)",
+      "request": "launch",
+      "mainClass": "com.Ayurnexa.Ayurnexa.AyurnexaApplication",
+      "projectName": "Ayurnexa",
+      "cwd": "${workspaceFolder}",
+      "envFile": "${workspaceFolder}/.env"
+    },
+    {
+      "type": "java",
+      "name": "Attach to Remote / Maven Debug (Port 5005)",
+      "request": "attach",
+      "hostName": "localhost",
+      "port": 5005
+    }
+  ]
+}

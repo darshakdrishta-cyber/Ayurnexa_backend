@@ -5,6 +5,7 @@
 *.log
 
 # Local environment secrets
+.env
 !.env.example
 
 # BlueJ files

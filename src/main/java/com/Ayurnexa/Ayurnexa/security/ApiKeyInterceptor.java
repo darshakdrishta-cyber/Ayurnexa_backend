@@ -30,6 +30,13 @@ public class ApiKeyInterceptor implements HandlerInterceptor {
         if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
             return true;
         }
+
+        // Allow all GET requests on /api/products without requiring an API key
+        if ("GET".equalsIgnoreCase(request.getMethod()) && request.getRequestURI() != null
+                && request.getRequestURI().startsWith("/api/products")) {
+            return true;
+        }
+
         String providedKey = request.getHeader(API_KEY_HEADER);
         if (providedKey == null || !MessageDigest.isEqual(
                 configuredKey, providedKey.getBytes(StandardCharsets.UTF_8))) {
