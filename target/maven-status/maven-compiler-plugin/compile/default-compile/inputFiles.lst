@@ -49,3 +49,4 @@
 /home/rksharma/Desktop/Projects/backend/AyurNexa/Ayurnexa_backend/src/main/java/com/Ayurnexa/Ayurnexa/security/ApiKeyInterceptor.java
 /home/rksharma/Desktop/Projects/backend/AyurNexa/Ayurnexa_backend/src/main/java/com/Ayurnexa/Ayurnexa/security/JwtAnnotationInterceptor.java
 /home/rksharma/Desktop/Projects/backend/AyurNexa/Ayurnexa_backend/src/main/java/com/Ayurnexa/Ayurnexa/security/JwtRequired.java
+/home/rksharma/Desktop/Projects/backend/AyurNexa/Ayurnexa_backend/src/main/java/com/Ayurnexa/Ayurnexa/security/PublicEndpoint.java
