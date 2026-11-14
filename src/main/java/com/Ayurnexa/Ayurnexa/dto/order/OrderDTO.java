@@ -22,14 +22,16 @@ public final class OrderDTO {
     public record CreateRequest(
             @JsonAlias("paymentId") @NotBlank String paymentRecordId,
             @NotEmpty List<@Valid ItemRequest> items,
-            LocalDate expectedDeliveryDate) {}
+            LocalDate expectedDeliveryDate,
+            com.Ayurnexa.Ayurnexa.model.order.OrderAddress address) {}
 
     public record UpdateRequest(
             String orderStatus,
             String orderProgress,
             LocalDate expectedDeliveryDate,
             LocalDate deliveryDate,
-            Boolean active) {}
+            Boolean active,
+            com.Ayurnexa.Ayurnexa.model.order.OrderAddress address) {}
 
     public record ProductSummary(
             String productId,
@@ -58,6 +60,7 @@ public final class OrderDTO {
             BigDecimal price,
             LocalDate expectedDeliveryDate,
             LocalDate deliveryDate,
+            com.Ayurnexa.Ayurnexa.model.order.OrderAddress address,
             List<ItemResponse> items) {}
 
     public record AdminUserSummary(
@@ -76,6 +79,7 @@ public final class OrderDTO {
             boolean active,
             LocalDate expectedDeliveryDate,
             LocalDate deliveryDate,
+            com.Ayurnexa.Ayurnexa.model.order.OrderAddress address,
             List<ItemResponse> items,
             AdminUserSummary user,
             Instant createdAt,
