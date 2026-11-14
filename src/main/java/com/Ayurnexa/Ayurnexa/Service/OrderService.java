@@ -77,6 +77,7 @@ public class OrderService {
         order.setStatus("CREATED");
         order.setOrderProgress("PLACED");
         order.setExpectedDeliveryDate(request.expectedDeliveryDate());
+        order.setAddress(request.address());
         order.setItems(items);
         Order savedOrder = orderRepository.save(order);
         payment.setOrderId(savedOrder.getOrderId());
@@ -109,6 +110,7 @@ public class OrderService {
         if (request.expectedDeliveryDate() != null) order.setExpectedDeliveryDate(request.expectedDeliveryDate());
         if (request.deliveryDate() != null) order.setDeliveryDate(request.deliveryDate());
         if (request.active() != null) order.setActive(request.active());
+        if (request.address() != null) order.setAddress(request.address());
 
         Order saved = orderRepository.save(order);
         Payment payment = paymentRepository.findById(saved.getPaymentId()).orElse(null);
@@ -137,6 +139,7 @@ public class OrderService {
         if (request.expectedDeliveryDate() != null) order.setExpectedDeliveryDate(request.expectedDeliveryDate());
         if (request.deliveryDate() != null) order.setDeliveryDate(request.deliveryDate());
         if (request.active() != null) order.setActive(request.active());
+        if (request.address() != null) order.setAddress(request.address());
 
         Order saved = orderRepository.save(order);
         Payment payment = paymentRepository.findById(saved.getPaymentId()).orElse(null);
@@ -190,6 +193,7 @@ public class OrderService {
                 order.isActive(),
                 order.getExpectedDeliveryDate(),
                 order.getDeliveryDate(),
+                order.getAddress(),
                 items,
                 userSummary,
                 order.getCreatedAt(),
@@ -255,6 +259,7 @@ public class OrderService {
                 order.getPrice(),
                 order.getExpectedDeliveryDate(),
                 order.getDeliveryDate(),
+                order.getAddress(),
                 items
         );
     }

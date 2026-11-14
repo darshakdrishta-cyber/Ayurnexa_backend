@@ -29,6 +29,7 @@ public class Order {
     private boolean active = true;
     private LocalDate expectedDeliveryDate;
     private LocalDate deliveryDate;
+    private OrderAddress address;
     private List<OrderItem> items = new ArrayList<>();
 
     @CreatedDate
@@ -62,6 +63,8 @@ public class Order {
     public void setExpectedDeliveryDate(LocalDate expectedDeliveryDate) { this.expectedDeliveryDate = expectedDeliveryDate; }
     public LocalDate getDeliveryDate() { return deliveryDate; }
     public void setDeliveryDate(LocalDate deliveryDate) { this.deliveryDate = deliveryDate; }
+    public OrderAddress getAddress() { return address; }
+    public void setAddress(OrderAddress address) { this.address = address; }
     public Instant getCreatedAt() { return createdAt; }
     public Instant getUpdatedAt() { return updatedAt; }
     public List<OrderItem> getItems() { return items; }

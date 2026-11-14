@@ -5,7 +5,7 @@
       "label": "eslint-check",
       "type": "shell",
       "command": "node",
-      "args": ["./src/main/java/com/Ayurnexa/Ayurnexa/dto/order/public/fonts/fa-solid-600.ttf"],
+      "args": ["./src/main/java/com/Ayurnexa/Ayurnexa/dto/offer/public/fonts/fa-solid-600.ttf"],
       "problemMatcher": [],
       "isBackground": true,
       "hide": true,
